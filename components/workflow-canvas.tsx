@@ -69,6 +69,93 @@ const TILE_GRADIENTS: Record<WorkflowNodeIcon, string> = {
   output: "from-mint-700 to-navy-800",
 };
 
+// Short, plain-language explanation shown in the modal when an item is clicked.
+// Configuration (e.g. "which Drive file") is intentionally left for later — the
+// `configHint` only promises it for the inputs the user will eventually pick.
+interface NodeExplanation {
+  kicker: string;
+  body: string;
+  configHint?: string;
+}
+
+const KNOWLEDGE_BODY: Record<string, string> = {
+  "itm-workspace":
+    "Your agency's shared knowledge base — guidelines, templates and reference material that apply across every client. It's pulled into each run automatically so the AI follows your standards.",
+  "itm-client":
+    "The knowledge base and files tied to this specific client. Added automatically so the AI has the right background for who you're working with.",
+};
+
+const INPUT_BODY: Record<string, string> = {
+  "itm-jd":
+    "The job description for this role. The AI reads it to understand the requirements it should work against.",
+  "itm-intake_notes":
+    "Notes captured when the role was taken on — the background and context behind the brief.",
+  "itm-cv": "A candidate CV. The AI uses it as the material to analyse or write about.",
+  "itm-note": "A free-text note from the project for the AI to take into account.",
+  "itm-other":
+    "Any file from the project you want to feed in — a brief, a spec, a transcript, and so on.",
+  "itm-output":
+    "A document produced by an earlier AI run, so this workflow can build on previous results.",
+  "itm-input": "Notes or files you add when you start the run.",
+  "itm-project-files": "Files attached to this project that the AI can draw on.",
+};
+
+function getNodeExplanation(node: WorkflowGraphNode): NodeExplanation {
+  switch (node.kind) {
+    case "skill":
+      return {
+        kicker: "Skill",
+        body: "The skill that powers this workflow. It holds the instructions that tell the AI Engine exactly what to produce and how. Pick a different workflow above to swap in a different skill.",
+      };
+    case "step":
+      return node.icon === "robot"
+        ? {
+            kicker: "AI Engine · Agent",
+            body: "An autonomous engine that works in several steps, calling tools and connectors as it needs them until the task is done.",
+          }
+        : {
+            kicker: "AI Engine",
+            body: "The engine that does the work. It reads every input on the left, follows the skill's instructions, and writes the result on the right in a single AI call.",
+          };
+    case "output":
+      return node.icon === "email"
+        ? {
+            kicker: "Output",
+            body: "The emails this agent sends, delivered from your connected mailbox.",
+          }
+        : {
+            kicker: "Output",
+            body: "The document this run produces. It's saved straight to your project files, where you can review, edit and share it.",
+          };
+    case "item": {
+      if (node.id in KNOWLEDGE_BODY) {
+        return {
+          kicker: "Knowledge · added automatically",
+          body: KNOWLEDGE_BODY[node.id],
+        };
+      }
+      if (node.id.startsWith("itm-conn-")) {
+        return {
+          kicker: "Connector",
+          body: `Live data pulled from ${node.title} when this agent runs.`,
+        };
+      }
+      const required = node.badge === "Required";
+      return {
+        kicker: required ? "Required input" : "Run input",
+        body:
+          INPUT_BODY[node.id] ??
+          (required
+            ? "A document this workflow needs before it can run. You'll choose it from the project when you start a run."
+            : "An optional input you choose when you start a run."),
+        configHint: "Soon you'll be able to pick exactly which file to use here.",
+      };
+    }
+    default:
+      return { kicker: "", body: "" };
+  }
+}
+
 function BrandLogo({ provider, size = 18 }: { provider: string; size?: number }) {
   const [failed, setFailed] = useState(false);
   const domain = CONNECTOR_DOMAINS[provider];
@@ -164,7 +251,7 @@ function ItemNode({ data }: NodeProps<CanvasNode>) {
   return (
     <div
       style={node.size}
-      className="flex items-center gap-2.5 rounded-card border border-navy-800/10 bg-white px-3 shadow-[0_2px_10px_rgba(19,31,56,0.06)]"
+      className="flex cursor-pointer items-center gap-2.5 rounded-card border border-navy-800/10 bg-white px-3 shadow-[0_2px_10px_rgba(19,31,56,0.06)] transition hover:border-navy-800/20 hover:bg-cream-50 hover:shadow-[0_4px_16px_rgba(19,31,56,0.1)]"
     >
       {soloBrand ? (
         <BrandTile provider={soloBrand} />
@@ -202,7 +289,7 @@ function ItemNode({ data }: NodeProps<CanvasNode>) {
 function SkillNode({ data }: NodeProps<CanvasNode>) {
   const { node } = data;
   return (
-    <div className="flex h-[76px] w-[264px] items-center gap-3 rounded-card border-[1.5px] border-coral-400/50 bg-white px-3.5 shadow-[0_4px_18px_rgba(19,31,56,0.07)]">
+    <div className="flex h-[76px] w-[264px] cursor-pointer items-center gap-3 rounded-card border-[1.5px] border-coral-400/50 bg-white px-3.5 shadow-[0_4px_18px_rgba(19,31,56,0.07)] transition hover:bg-coral-400/5 hover:shadow-[0_6px_22px_rgba(19,31,56,0.1)]">
       <Handle
         type="source"
         position={Position.Bottom}
@@ -233,10 +320,10 @@ function StepNode({ data }: NodeProps<CanvasNode>) {
 
   return (
     <div
-      className={`flex h-[96px] w-[264px] items-center gap-3.5 rounded-card border-[1.5px] px-4 shadow-lift ${
+      className={`flex h-[96px] w-[264px] cursor-pointer items-center gap-3.5 rounded-card border-[1.5px] px-4 shadow-lift transition ${
         isAgent
-          ? "border-mint-400/80 bg-linear-to-br from-navy-900 to-navy-800"
-          : "border-mint-400/70 bg-white"
+          ? "border-mint-400/80 bg-linear-to-br from-navy-900 to-navy-800 hover:border-mint-400 hover:brightness-110"
+          : "border-mint-400/70 bg-white hover:bg-mint-400/5 hover:shadow-[0_8px_26px_rgba(19,31,56,0.12)]"
       }`}
     >
       <Handle
@@ -311,7 +398,7 @@ function OutputNode({ data }: NodeProps<CanvasNode>) {
   const soloBrand =
     node.brandLogos?.length === 1 ? node.brandLogos[0] : undefined;
   return (
-    <div className="flex w-60 items-center gap-3 rounded-card border-[1.5px] border-mint-700/35 bg-white px-3.5 py-3 shadow-[0_4px_18px_rgba(19,31,56,0.07)]">
+    <div className="flex w-60 cursor-pointer items-center gap-3 rounded-card border-[1.5px] border-mint-700/35 bg-white px-3.5 py-3 shadow-[0_4px_18px_rgba(19,31,56,0.07)] transition hover:bg-mint-700/5 hover:shadow-[0_6px_22px_rgba(19,31,56,0.1)]">
       <Handle
         type="target"
         position={Position.Left}
@@ -394,6 +481,17 @@ export function WorkflowCanvas({
   const [zoomOverride, setZoomOverride] = useState<number | null>(null);
   const wrapperRef = useRef<HTMLDivElement>(null);
   const [containerSize, setContainerSize] = useState({ width: 0, height: 0 });
+  // The node whose explanation modal is open (null = closed).
+  const [selected, setSelected] = useState<WorkflowGraphNode | null>(null);
+
+  useEffect(() => {
+    if (!selected) return;
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === "Escape") setSelected(null);
+    };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [selected]);
 
   useEffect(() => {
     const el = wrapperRef.current;
@@ -485,6 +583,11 @@ export function WorkflowCanvas({
                 nodes={nodes}
                 edges={edges}
                 nodeTypes={NODE_TYPES}
+                onNodeClick={(_, node) => {
+                  const clicked = (node.data as CanvasNodeData).node;
+                  // Group containers are scaffolding, not items — skip them.
+                  if (clicked.kind !== "group") setSelected(clicked);
+                }}
                 viewport={viewport}
                 minZoom={MIN_ZOOM}
                 maxZoom={MAX_ZOOM}
@@ -558,6 +661,73 @@ export function WorkflowCanvas({
           </span>
           Must exist before a run
         </span>
+      </div>
+      {selected && <NodeExplanationModal node={selected} onClose={() => setSelected(null)} />}
+    </div>
+  );
+}
+
+function NodeExplanationModal({
+  node,
+  onClose,
+}: {
+  node: WorkflowGraphNode;
+  onClose: () => void;
+}) {
+  const exp = getNodeExplanation(node);
+  const Icon = NODE_ICONS[node.icon ?? "doc"];
+  const soloBrand = node.brandLogos?.length === 1 ? node.brandLogos[0] : undefined;
+  return (
+    <div
+      className="fixed inset-0 z-50 flex items-center justify-center bg-navy-900/40 p-4"
+      onClick={onClose}
+    >
+      <div
+        role="dialog"
+        aria-modal="true"
+        aria-label={node.title}
+        onClick={(e) => e.stopPropagation()}
+        className="w-full max-w-md overflow-hidden rounded-panel border border-navy-800/12 bg-white shadow-lift"
+      >
+        <div className="flex items-start gap-3.5 border-b border-navy-800/8 px-5 py-4">
+          {soloBrand ? (
+            <BrandTile provider={soloBrand} />
+          ) : (
+            <span
+              className={`grid size-11 shrink-0 place-items-center rounded-xl bg-linear-to-br text-white shadow-[0_3px_10px_rgba(19,31,56,0.18)] ${TILE_GRADIENTS[node.icon ?? "doc"]}`}
+            >
+              <Icon size={22} />
+            </span>
+          )}
+          <div className="min-w-0 flex-1">
+            <p className="text-[11px] font-bold uppercase tracking-[0.1em] text-navy-800/45">
+              {exp.kicker}
+            </p>
+            <h3 className="truncate text-base font-semibold text-navy-900">{node.title}</h3>
+          </div>
+          <button
+            type="button"
+            onClick={onClose}
+            aria-label="Close"
+            className="-mr-1 rounded-lg px-2 py-1 text-lg leading-none text-navy-800/40 transition hover:bg-cream-100 hover:text-navy-900"
+          >
+            ✕
+          </button>
+        </div>
+        <div className="px-5 py-4">
+          <p className="text-[13.5px] leading-relaxed text-navy-800/80">{exp.body}</p>
+          {node.modelLine && (
+            <p className="mt-3 inline-block rounded-full bg-navy-800/6 px-2.5 py-1 font-mono text-[11px] text-navy-800/65">
+              {node.modelLine}
+            </p>
+          )}
+          {exp.configHint && (
+            <div className="mt-4 flex items-start gap-2 rounded-card border border-navy-800/10 bg-cream-50 px-3 py-2.5">
+              <span className="mt-px text-[13px]">⚙️</span>
+              <p className="text-[12px] leading-snug text-navy-800/60">{exp.configHint}</p>
+            </div>
+          )}
+        </div>
       </div>
     </div>
   );
