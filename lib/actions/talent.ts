@@ -4,23 +4,31 @@ import { revalidatePath } from "next/cache";
 import { requireSession } from "../auth";
 import { db } from "../db";
 import { getProspect } from "../queries";
+import { LINKEDIN_URL_ERROR, isValidLinkedinUrl } from "../validation";
 
-export async function createProspectAction(formData: FormData) {
+export async function createProspectAction(formData: FormData): Promise<string> {
   const session = await requireSession();
   const name = String(formData.get("name") ?? "").trim();
   if (!name) throw new Error("Prospect name is required");
-  const { error } = await db().from("talent_prospects").insert({
-    workspace_id: session.workspaceId,
-    name,
-    email: optional(formData.get("email")),
-    phone: optional(formData.get("phone")),
-    country: optional(formData.get("country")),
-    city: optional(formData.get("city")),
-    linkedin_url: optional(formData.get("linkedin_url")),
-    notes: optional(formData.get("notes")),
-  });
+  const linkedin = optional(formData.get("linkedin_url"));
+  if (!isValidLinkedinUrl(linkedin)) throw new Error(LINKEDIN_URL_ERROR);
+  const { data, error } = await db()
+    .from("talent_prospects")
+    .insert({
+      workspace_id: session.workspaceId,
+      name,
+      email: optional(formData.get("email")),
+      phone: optional(formData.get("phone")),
+      country: optional(formData.get("country")),
+      city: optional(formData.get("city")),
+      linkedin_url: linkedin,
+      notes: optional(formData.get("notes")),
+    })
+    .select("id")
+    .single();
   if (error) throw error;
   revalidatePath("/talent-pool");
+  return data.id;
 }
 
 export async function updateProspectAction(formData: FormData) {
@@ -30,6 +38,8 @@ export async function updateProspectAction(formData: FormData) {
   if (!name) throw new Error("Prospect name is required");
   const prospect = await getProspect(session.workspaceId, id);
   if (!prospect) throw new Error("Prospect not found");
+  const linkedin = optional(formData.get("linkedin_url"));
+  if (!isValidLinkedinUrl(linkedin)) throw new Error(LINKEDIN_URL_ERROR);
   const { error } = await db()
     .from("talent_prospects")
     .update({
@@ -38,7 +48,7 @@ export async function updateProspectAction(formData: FormData) {
       phone: optional(formData.get("phone")),
       country: optional(formData.get("country")),
       city: optional(formData.get("city")),
-      linkedin_url: optional(formData.get("linkedin_url")),
+      linkedin_url: linkedin,
       notes: optional(formData.get("notes")),
       updated_at: new Date().toISOString(),
     })

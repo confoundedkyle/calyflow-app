@@ -16,6 +16,7 @@ import {
   Field,
   inputClass,
 } from "@/components/ui";
+import { PhoneInput } from "@/components/pickers";
 import { useToast } from "@/components/use-toast";
 
 const STATUSES: CrmLeadStatus[] = [
@@ -100,9 +101,7 @@ export function CrmLeads({
             <Field label="Email">
               <input name="email" type="email" className={inputClass} />
             </Field>
-            <Field label="Phone">
-              <input name="phone" className={inputClass} />
-            </Field>
+            <PhoneInput />
             <Field label="Title">
               <input name="title" className={inputClass} />
             </Field>
@@ -282,13 +281,7 @@ function LeadRow({
               className={inputClass}
             />
           </Field>
-          <Field label="Phone">
-            <input
-              name="phone"
-              defaultValue={lead.phone ?? ""}
-              className={inputClass}
-            />
-          </Field>
+          <PhoneInput defaultValue={lead.phone ?? ""} />
           <Field label="Title">
             <input
               name="title"

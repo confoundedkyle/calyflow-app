@@ -7,6 +7,8 @@ import {
   deleteProspectAction,
   updateProspectAction,
 } from "@/lib/actions/talent";
+import { uploadDocumentAction } from "@/lib/actions/documents";
+import { isValidLinkedinUrl, LINKEDIN_URL_ERROR } from "@/lib/validation";
 import type { TalentProspect } from "@/lib/types";
 import {
   Button,
@@ -16,6 +18,8 @@ import {
   PageHeader,
   inputClass,
 } from "@/components/ui";
+import { CountrySelect, PhoneInput } from "@/components/pickers";
+import { FileDrop } from "@/components/file-drop";
 import { useToast } from "@/components/use-toast";
 
 export function TalentProspects({
@@ -26,6 +30,7 @@ export function TalentProspects({
   const [adding, setAdding] = useState(false);
   const [query, setQuery] = useState("");
   const [error, setError] = useState<string | null>(null);
+  const [cv, setCv] = useState<File | null>(null);
   const [pending, startTransition] = useTransition();
   const { toast, showToast } = useToast();
 
@@ -41,12 +46,26 @@ export function TalentProspects({
   function add(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault();
     const formData = new FormData(e.currentTarget);
+    if (!isValidLinkedinUrl(String(formData.get("linkedin_url") ?? ""))) {
+      setError(LINKEDIN_URL_ERROR);
+      return;
+    }
     startTransition(async () => {
       try {
         setError(null);
-        await createProspectAction(formData);
+        const prospectId = await createProspectAction(formData);
+        if (cv) {
+          const fd = new FormData();
+          fd.set("scopeType", "prospect");
+          fd.set("scopeId", prospectId);
+          fd.set("kind", "file");
+          fd.set("docType", "cv");
+          fd.set("file", cv);
+          await uploadDocumentAction(fd);
+        }
         setAdding(false);
-        showToast("Prospect added");
+        setCv(null);
+        showToast(cv ? "Prospect added with CV" : "Prospect added");
       } catch (err) {
         setError(err instanceof Error ? err.message : "Could not add prospect");
       }
@@ -81,12 +100,8 @@ export function TalentProspects({
             <Field label="Email">
               <input name="email" type="email" className={inputClass} />
             </Field>
-            <Field label="Phone">
-              <input name="phone" className={inputClass} />
-            </Field>
-            <Field label="Country">
-              <input name="country" className={inputClass} />
-            </Field>
+            <PhoneInput />
+            <CountrySelect />
             <Field label="City">
               <input name="city" className={inputClass} />
             </Field>
@@ -94,6 +109,14 @@ export function TalentProspects({
               <Field label="Notes (skills, abilities, context)">
                 <textarea name="notes" rows={3} className={inputClass} />
               </Field>
+            </div>
+            <div className="sm:col-span-2">
+              <FileDrop
+                file={cv}
+                onFile={setCv}
+                disabled={pending}
+                label="CV (optional)"
+              />
             </div>
             <div className="flex items-center gap-3 sm:col-span-2">
               <Button type="submit" variant="small" disabled={pending}>
@@ -195,6 +218,10 @@ function ProspectRow({
   function save(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault();
     const formData = new FormData(e.currentTarget);
+    if (!isValidLinkedinUrl(String(formData.get("linkedin_url") ?? ""))) {
+      setError(LINKEDIN_URL_ERROR);
+      return;
+    }
     startTransition(async () => {
       try {
         setError(null);
@@ -235,20 +262,8 @@ function ProspectRow({
               className={inputClass}
             />
           </Field>
-          <Field label="Phone">
-            <input
-              name="phone"
-              defaultValue={prospect.phone ?? ""}
-              className={inputClass}
-            />
-          </Field>
-          <Field label="Country">
-            <input
-              name="country"
-              defaultValue={prospect.country ?? ""}
-              className={inputClass}
-            />
-          </Field>
+          <PhoneInput defaultValue={prospect.phone ?? ""} />
+          <CountrySelect defaultValue={prospect.country ?? ""} />
           <Field label="City">
             <input
               name="city"

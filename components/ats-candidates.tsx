@@ -18,6 +18,7 @@ import {
   PageHeader,
   inputClass,
 } from "@/components/ui";
+import { PhoneInput } from "@/components/pickers";
 import { useToast } from "@/components/use-toast";
 
 const STATUSES: AtsCandidateStatus[] = [
@@ -122,9 +123,7 @@ export function AtsCandidates({
             <Field label="Email">
               <input name="email" type="email" className={inputClass} />
             </Field>
-            <Field label="Phone">
-              <input name="phone" className={inputClass} />
-            </Field>
+            <PhoneInput />
             <Field label="Status">
               <select
                 name="status"
@@ -300,13 +299,7 @@ function CandidateRow({
               className={inputClass}
             />
           </Field>
-          <Field label="Phone">
-            <input
-              name="phone"
-              defaultValue={candidate.phone ?? ""}
-              className={inputClass}
-            />
-          </Field>
+          <PhoneInput defaultValue={candidate.phone ?? ""} />
           <Field label="Status">
             <select
               name="status"
