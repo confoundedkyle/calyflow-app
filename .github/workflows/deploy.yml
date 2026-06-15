@@ -13,10 +13,12 @@
 #   PLATFORM_PROVIDER_ENABLED, CALYFLOW_PLATFORM_PROVIDER,
 #   CALYFLOW_PLATFORM_MODEL,
 #   ONE_TIME_PLATFORM_CREDIT_DEFAULT_USD, MOCK_AI,
-#   APP_BASE_URL (public app URL, for connector OAuth redirects)
+#   APP_BASE_URL (public app URL, for connector OAuth redirects),
+#   NEXT_PUBLIC_POSTHOG_HOST (PostHog ingest URL for analytics)
 # Required "Prod" environment SECRETS:
 #   SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY, NEXT_PUBLIC_SUPABASE_ANON_KEY,
 #   APP_ENCRYPTION_KEY, NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY, CLERK_SECRET_KEY,
+#   NEXT_PUBLIC_POSTHOG_PROJECT_TOKEN (PostHog analytics project token),
 #   CLERK_WEBHOOK_SIGNING_SECRET, CALYFLOW_PLATFORM_API_KEY, CRON_SECRET,
 #   SUPABASE_ACCESS_TOKEN, SUPABASE_DB_PASSWORD  (CI applies migrations on every
 #     deploy; without these the deploy fails closed before any traffic cutover)
@@ -90,6 +92,8 @@ jobs:
           docker build -t "$IMAGE" \
             --build-arg NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY="${{ secrets.NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY }}" \
             --build-arg NEXT_PUBLIC_SUPABASE_ANON_KEY="${{ secrets.NEXT_PUBLIC_SUPABASE_ANON_KEY }}" \
+            --build-arg NEXT_PUBLIC_POSTHOG_PROJECT_TOKEN="${{ secrets.NEXT_PUBLIC_POSTHOG_PROJECT_TOKEN }}" \
+            --build-arg NEXT_PUBLIC_POSTHOG_HOST="${{ vars.NEXT_PUBLIC_POSTHOG_HOST }}" \
             --build-arg CLERK_SECRET_KEY="${{ secrets.CLERK_SECRET_KEY }}" \
             --build-arg SINGLE_WORKSPACE="${{ vars.SINGLE_WORKSPACE }}" \
             .
@@ -153,6 +157,7 @@ jobs:
             const keys = [
               "SUPABASE_URL", "SUPABASE_SERVICE_ROLE_KEY",
               "NEXT_PUBLIC_SUPABASE_ANON_KEY", "APP_ENCRYPTION_KEY",
+              "NEXT_PUBLIC_POSTHOG_PROJECT_TOKEN", "NEXT_PUBLIC_POSTHOG_HOST",
               "SINGLE_WORKSPACE", "ADMIN_EMAILS",
               "NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY", "CLERK_SECRET_KEY",
               "CLERK_WEBHOOK_SIGNING_SECRET", "PLATFORM_PROVIDER_ENABLED",
@@ -180,6 +185,8 @@ jobs:
           SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
           NEXT_PUBLIC_SUPABASE_ANON_KEY: ${{ secrets.NEXT_PUBLIC_SUPABASE_ANON_KEY }}
           APP_ENCRYPTION_KEY: ${{ secrets.APP_ENCRYPTION_KEY }}
+          NEXT_PUBLIC_POSTHOG_PROJECT_TOKEN: ${{ secrets.NEXT_PUBLIC_POSTHOG_PROJECT_TOKEN }}
+          NEXT_PUBLIC_POSTHOG_HOST: ${{ vars.NEXT_PUBLIC_POSTHOG_HOST }}
           SINGLE_WORKSPACE: ${{ vars.SINGLE_WORKSPACE }}
           ADMIN_EMAILS: ${{ vars.ADMIN_EMAILS }}
           NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY: ${{ secrets.NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY }}
