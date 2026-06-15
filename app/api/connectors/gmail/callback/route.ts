@@ -5,6 +5,7 @@ import { db } from "@/lib/db";
 import { env } from "@/lib/env";
 import { encrypt, verify } from "@/lib/crypto";
 import { getAdapter } from "@/lib/integrations";
+import { getPostHogClient } from "@/lib/posthog-server";
 import { OAUTH_COOKIE } from "../start/route";
 
 const PROVIDER = "gmail";
@@ -79,6 +80,15 @@ export async function GET(request: NextRequest) {
         },
         { onConflict: "workspace_id,provider" },
       );
+    getPostHogClient().capture({
+      distinctId: session.userId,
+      event: "connector_connected",
+      properties: {
+        provider: PROVIDER,
+        workspace_id: session.workspaceId,
+        has_account_label: !!tokens.accountLabel,
+      },
+    });
     return clearCookie(
       NextResponse.redirect(settingsUrl(origin, "connected=gmail")),
     );

@@ -4,6 +4,7 @@ import { getSession } from "@/lib/auth";
 import { listActiveModuleKeys, listClientsWithProjects } from "@/lib/queries";
 import { AppSidebar } from "@/components/app-sidebar";
 import { AppTopbar } from "@/components/app-topbar";
+import { PostHogIdentify } from "@/components/posthog-identify";
 
 export default async function AppLayout({
   children,
@@ -20,6 +21,12 @@ export default async function AppLayout({
 
   return (
     <div className="flex h-dvh overflow-hidden">
+      <PostHogIdentify
+        userId={session.userId}
+        workspaceId={session.workspaceId}
+        workspaceName={session.workspace.name}
+        workspaceType={session.workspace.workspace_type}
+      />
       <AppSidebar clients={clients} modules={modules} />
       {/* min-w-0 lets grids/tables shrink instead of overflowing on mobile */}
       <div className="flex min-w-0 flex-1 flex-col overflow-hidden">

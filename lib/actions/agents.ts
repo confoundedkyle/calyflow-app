@@ -5,6 +5,7 @@ import { redirect } from "next/navigation";
 import { requireSession } from "../auth";
 import { db } from "../db";
 import { getWorkspaceAgent } from "../queries";
+import { getPostHogClient } from "../posthog-server";
 
 /** One-click import: snapshot copy of a library agent into the workspace. */
 export async function importAgentAction(libraryAgentId: string) {
@@ -29,6 +30,15 @@ export async function importAgentAction(libraryAgentId: string) {
       imported_version: library.version,
     });
   if (error) throw error;
+  getPostHogClient().capture({
+    distinctId: session.userId,
+    event: "agent_imported",
+    properties: {
+      library_agent_id: libraryAgentId,
+      agent_name: library.name,
+      workspace_id: session.workspaceId,
+    },
+  });
   revalidatePath("/");
 }
 

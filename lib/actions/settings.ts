@@ -8,6 +8,7 @@ import { encrypt } from "../crypto";
 import { env } from "../env";
 import { SUPPORTED_PROVIDERS, validateApiKey } from "../providers";
 import { ensureStarterPack } from "../starter-pack";
+import { getPostHogClient } from "../posthog-server";
 import type { WorkspaceType } from "../types";
 
 // All settings mutations require the admin ("Owner") role — enforced
@@ -48,6 +49,15 @@ export async function setWorkspaceTypeAction(formData: FormData) {
     .update(update)
     .eq("id", session.workspaceId);
   if (error) throw error;
+  getPostHogClient().capture({
+    distinctId: session.userId,
+    event: "workspace_type_set",
+    properties: {
+      workspace_type: type,
+      workspace_id: session.workspaceId,
+      has_trial: type !== "independent",
+    },
+  });
   revalidatePath("/settings");
   revalidatePath("/onboarding");
 }
@@ -124,6 +134,17 @@ export async function saveProviderAction(
     status = result.valid ? "valid" : "invalid";
   }
   await upsertProvider();
+  getPostHogClient().capture({
+    distinctId: session.userId,
+    event: "provider_saved",
+    properties: {
+      provider,
+      model: defaultModel,
+      is_new: !existing,
+      status,
+      workspace_id: session.workspaceId,
+    },
+  });
   revalidatePath("/settings/providers");
   return { ok: true };
 
@@ -252,6 +273,14 @@ export async function finishOnboardingAction() {
   }
   // Give every new workspace the recommended Starter Pack workflows up front.
   await ensureStarterPack(session.workspaceId);
+  getPostHogClient().capture({
+    distinctId: session.userId,
+    event: "onboarding_completed",
+    properties: {
+      workspace_type: session.workspace.workspace_type,
+      workspace_id: session.workspaceId,
+    },
+  });
   // New users land on the Demo page for an instant "aha" (CV Screener), not the
   // empty Dashboard. The demo project is provisioned lazily on first visit.
   revalidatePath("/");

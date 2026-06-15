@@ -19,6 +19,7 @@ import {
   getWorkspaceWorkflow,
   listDocuments,
 } from "@/lib/queries";
+import { getPostHogClient } from "@/lib/posthog-server";
 import type { Doc } from "@/lib/types";
 
 export const maxDuration = 600; // sync + streaming; Cloud Run holds the line
@@ -172,6 +173,20 @@ export async function POST(request: NextRequest) {
   }
   const runId = run.id as string;
 
+  getPostHogClient().capture({
+    distinctId: session.userId,
+    event: "workflow_run_started",
+    properties: {
+      run_id: runId,
+      workflow_id: workflowId,
+      workflow_name: workflow.name,
+      project_id: projectId,
+      workspace_id: session.workspaceId,
+      has_input_docs: inputDocIds.length > 0,
+      has_input_text: !!inputText.trim(),
+    },
+  });
+
   const encoder = new TextEncoder();
   const stream = new ReadableStream<Uint8Array>({
     async start(controller) {
@@ -297,6 +312,25 @@ export async function POST(request: NextRequest) {
           p_amount: costUsd,
         });
       }
+
+      getPostHogClient().capture({
+        distinctId: session.userId,
+        event: "workflow_run_completed",
+        properties: {
+          run_id: runId,
+          workflow_id: workflowId,
+          workflow_name: workflow.name,
+          project_id: projectId,
+          workspace_id: session.workspaceId,
+          succeeded,
+          provider: served?.row.provider ?? null,
+          model: served?.model ?? null,
+          fallback_used: fallbackUsed,
+          input_tokens: usage.inputTokens ?? null,
+          output_tokens: usage.outputTokens ?? null,
+          cost_usd: costUsd,
+        },
+      });
 
       if (!succeeded) {
         const message =

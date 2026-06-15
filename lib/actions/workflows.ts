@@ -5,6 +5,7 @@ import { redirect } from "next/navigation";
 import { requireSession } from "../auth";
 import { db } from "../db";
 import { getWorkspaceWorkflow } from "../queries";
+import { getPostHogClient } from "../posthog-server";
 
 /** One-click import: snapshot copy — user edits never touch the library. */
 export async function importWorkflowAction(libraryWorkflowId: string) {
@@ -28,6 +29,16 @@ export async function importWorkflowAction(libraryWorkflowId: string) {
     .select("id")
     .single();
   if (error) throw error;
+  getPostHogClient().capture({
+    distinctId: session.userId,
+    event: "workflow_imported",
+    properties: {
+      workflow_id: created.id,
+      library_workflow_id: libraryWorkflowId,
+      workflow_name: library.name,
+      workspace_id: session.workspaceId,
+    },
+  });
   revalidatePath("/workflows");
   revalidatePath("/library");
   redirect(`/workflows?imported=${created.id}`);
@@ -50,6 +61,15 @@ export async function createWorkflowAction(formData: FormData) {
     .select("id")
     .single();
   if (error) throw error;
+  getPostHogClient().capture({
+    distinctId: session.userId,
+    event: "workflow_created",
+    properties: {
+      workflow_id: data.id,
+      workflow_name: name,
+      workspace_id: session.workspaceId,
+    },
+  });
   revalidatePath("/workflows");
   redirect(`/workflows/${data.id}`);
 }

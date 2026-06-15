@@ -4,6 +4,7 @@ import { getSession } from "@/lib/auth";
 import { db } from "@/lib/db";
 import { env } from "@/lib/env";
 import { checkBudgets } from "@/lib/budgets";
+import { getPostHogClient } from "@/lib/posthog-server";
 import {
   computeCostUsd,
   getLanguageModel,
@@ -432,6 +433,22 @@ export async function POST(request: NextRequest) {
   }
   const runId = run.id as string;
 
+  getPostHogClient().capture({
+    distinctId: session.userId,
+    event: "agent_run_started",
+    properties: {
+      run_id: runId,
+      agent_id: agentId,
+      agent_name: agent.name,
+      project_id: projectId,
+      workspace_id: session.workspaceId,
+      provider,
+      model,
+      has_task: !!task.trim(),
+      has_attachments: attachments.length > 0,
+    },
+  });
+
   const ctx: ToolContext = {
     workspaceId: session.workspaceId,
     projectId,
@@ -659,6 +676,26 @@ export async function POST(request: NextRequest) {
           p_amount: costUsd,
         });
       }
+
+      getPostHogClient().capture({
+        distinctId: session.userId,
+        event: "agent_run_completed",
+        properties: {
+          run_id: runId,
+          agent_id: agentId,
+          agent_name: agent.name,
+          project_id: projectId,
+          workspace_id: session.workspaceId,
+          succeeded,
+          provider,
+          model,
+          step_count: steps.length,
+          input_tokens: usage.inputTokens ?? null,
+          output_tokens: usage.outputTokens ?? null,
+          cost_usd: costUsd,
+          has_output_doc: outputDocId !== null,
+        },
+      });
 
       if (!succeeded) {
         controller.enqueue(ndjson({ type: "error", message: failure }));

@@ -5,6 +5,7 @@ import { redirect } from "next/navigation";
 import { requireSession } from "../auth";
 import { db } from "../db";
 import { getClient, getProject } from "../queries";
+import { getPostHogClient } from "../posthog-server";
 
 export async function createClientAction(formData: FormData) {
   const session = await requireSession();
@@ -16,6 +17,11 @@ export async function createClientAction(formData: FormData) {
     .select("id")
     .single();
   if (error) throw error;
+  getPostHogClient().capture({
+    distinctId: session.userId,
+    event: "client_created",
+    properties: { client_id: data.id, workspace_id: session.workspaceId },
+  });
   revalidatePath("/clients");
   redirect(`/clients/${data.id}`);
 }
@@ -33,6 +39,15 @@ export async function createProjectAction(formData: FormData) {
     .select("id")
     .single();
   if (error) throw error;
+  getPostHogClient().capture({
+    distinctId: session.userId,
+    event: "project_created",
+    properties: {
+      project_id: data.id,
+      client_id: clientId,
+      workspace_id: session.workspaceId,
+    },
+  });
   revalidatePath(`/clients/${clientId}`);
   redirect(`/clients/${clientId}/projects/${data.id}`);
 }
