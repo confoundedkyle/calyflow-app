@@ -12,7 +12,7 @@ import {
 import type { WorkflowGraph } from "@/lib/workflow-graph";
 import { DownloadButtons } from "@/components/download-buttons";
 import { WorkflowCanvas } from "@/components/workflow-canvas";
-import { Button } from "@/components/ui";
+import { Button, ButtonLink } from "@/components/ui";
 
 interface DemoCv {
   id: string;
@@ -121,6 +121,7 @@ function CvScreener({
   const [running, setRunning] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const outputRef = useRef<HTMLDivElement>(null);
+  const canvasRef = useRef<HTMLDivElement>(null);
   const cvFileRef = useRef<HTMLInputElement>(null);
   const jdFileRef = useRef<HTMLInputElement>(null);
 
@@ -204,6 +205,9 @@ function CvScreener({
     setOutput("");
     setSteps([]);
     setRunning(true);
+    // The run happens below the fold — bring the live canvas and progress into
+    // view so people don't sit on the button thinking nothing happened.
+    canvasRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
     try {
       // The agent reads candidates from the project knowledge base via tools,
       // and search only returns *active* docs — so mirror the checkboxes onto
@@ -405,7 +409,7 @@ function CvScreener({
       {/* Run — the moment of truth. */}
       <div className="flex flex-col items-center gap-2 rounded-card bg-linear-to-br from-mint-400/15 to-sky-300/10 px-6 py-7 text-center">
         <Button onClick={run} disabled={!canRun} className="text-base">
-          {running ? "Screening…" : "▶ Run Agent"}
+          {running ? "Working… watch below ↓" : "▶ Run Agent"}
         </Button>
         <p className="text-sm text-navy-800/55">
           {selected.size > 0
@@ -415,22 +419,25 @@ function CvScreener({
       </div>
 
       {/* The agent's shape, kept BELOW the action so people watch how it works
-          while the run happens in the background. The header switches to a live
-          "running" state so it's obvious the work is happening, not stalled. */}
-      <div className="rounded-card border border-navy-800/12 bg-white p-6">
+          while the run happens. We scroll here on run start, and the header
+          switches to a live "running" state so it's obvious work is happening. */}
+      <div
+        ref={canvasRef}
+        className="scroll-mt-4 rounded-card border border-navy-800/12 bg-white p-6"
+      >
         <div className="mb-4 flex flex-wrap items-start justify-between gap-2">
           <div>
             <h2 className="text-lg font-semibold">How this agent runs</h2>
             <p className="mt-0.5 max-w-[60ch] text-sm text-navy-800/55">
               {running
-                ? "Your agent is working in the background — here's what it's doing while you wait. The report appears below as soon as it's done."
+                ? "Your agent is working right now — here's what it's doing, step by step. The report appears below as soon as it's done."
                 : "The agent reads your job description and CVs, screens each candidate, and writes an evidence-based report back."}
             </p>
           </div>
           {running && (
             <span className="inline-flex shrink-0 items-center gap-2 rounded-chip bg-mint-400/15 px-3 py-1.5 text-xs font-bold uppercase tracking-wider text-mint-700">
               <span className="inline-block h-2 w-2 animate-pulse rounded-full bg-mint-700" />
-              Running in the background
+              Working now
             </span>
           )}
         </div>
@@ -477,6 +484,24 @@ function CvScreener({
         outputRef={outputRef}
         filename={`${agentName} — screening report`}
       />
+
+      {/* Once a report is in hand, point people at the real next step: their
+          own workspace, with their own clients, files, and agents. */}
+      {output && !running && (
+        <div className="rounded-card border border-mint-400/40 bg-linear-to-br from-mint-400/15 to-sky-300/10 px-6 py-9 text-center">
+          <h2 className="text-xl font-bold sm:text-2xl">
+            Set up your own workspace and agents
+          </h2>
+          <p className="mx-auto mt-2 max-w-[54ch] text-navy-800/60">
+            That was a real agent run on sample data. Now create your first
+            client, add your own job descriptions and CVs, and put your agents
+            to work on live roles.
+          </p>
+          <ButtonLink href="/clients" className="mt-6 inline-flex text-base">
+            ＋ Create your first client
+          </ButtonLink>
+        </div>
+      )}
     </div>
   );
 }

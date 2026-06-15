@@ -31,7 +31,16 @@ export default async function ClientsPage() {
           icon={<IconClientsBuilding size={48} className="text-navy-800/60" />}
           title="No clients yet"
           description="Create your first client, then open a new project for each position you're filling."
-          action={<AddClient>＋ Create your first client</AddClient>}
+          action={
+            <div className="flex flex-col items-center gap-3">
+              <AddClient>＋ Create your first client</AddClient>
+              <p className="max-w-[46ch] text-sm text-navy-800/45">
+                A “client” is any team you recruit for — an external company, or
+                for in-house recruiters, an internal department such as
+                Engineering or Business Operations.
+              </p>
+            </div>
+          }
         />
       ) : (
         <>

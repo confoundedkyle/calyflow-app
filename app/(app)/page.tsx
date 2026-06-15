@@ -111,6 +111,14 @@ export default async function DashboardPage() {
           Browse the library, import an agent, attach your documents, and
           run — output docs land right back in your project.
         </p>
+        {clients.length === 0 && (
+          <ButtonLink
+            href="/clients"
+            className="relative mt-5 inline-flex text-base"
+          >
+            ＋ Create your first client
+          </ButtonLink>
+        )}
       </div>
 
       {budget.warningFraction !== null && (
