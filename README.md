@@ -25,22 +25,57 @@ CV Screener · Candidate Submission Pack — a full search lifecycle.
 
 ## Local development
 
+You need **three things installed** first — everything else is automated:
+
+- **Node 22+** (`nvm use` picks it up from `.nvmrc`)
+- **Docker** — [Docker Desktop](https://www.docker.com/products/docker-desktop/)
+  or [Colima](https://github.com/abiosoft/colima) (`brew install colima`)
+- **Supabase CLI** — `brew install supabase/tap/supabase` (or `npm i -g supabase`)
+
+Then, from a fresh clone:
+
 ```bash
 npm install
-cp .env.example .env.local        # fill in SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY, APP_ENCRYPTION_KEY
-npx tsx scripts/seed.ts           # loads /workflows/*.yaml + model catalog snapshot
-npm run dev
+npm run setup     # boots local Supabase, writes .env.local, applies migrations, seeds
+npm run dev       # open http://localhost:3000
 ```
 
+`npm run setup` is idempotent — re-run it any time. It starts the local
+Supabase stack (Docker), wires `.env.local` to it with the local keys
+(no copy/paste), generates an `APP_ENCRYPTION_KEY`, and seeds the workflow
+library. No cloud account or real API keys required to get a working app.
+
 With no Clerk keys set, the app runs in **single-workspace mode**: sign in
-with any email; owners come from `ADMIN_EMAILS`. Set `MOCK_AI=true` to test
-the full run pipeline without an AI provider key.
+with **any email** (owners come from `ADMIN_EMAILS`, default `you@example.com`),
+no password. To run a workflow without an AI provider key, set `MOCK_AI=true`
+in `.env.local` — it streams a canned response through the full run pipeline,
+usage logging and all.
+
+Common commands:
+
+| Command | What it does |
+|---|---|
+| `npm run setup` | One-time (re-runnable) local bootstrap |
+| `npm run dev` | Start the Next.js dev server |
+| `npm run db:stop` | Stop the local Supabase stack (data persists) |
+| `npm run db:reset` | Wipe + re-apply all migrations, then re-seed |
+| `npm run seed` | Re-seed the workflow library + model catalog |
+
+Local URLs: app `:3000` · Supabase Studio `:54323` · Mailpit (outgoing email) `:54324`.
 
 ### Database
 
-Migrations live in `supabase/migrations/` (plain SQL — apply with the
-Supabase CLI: `supabase db push`). The schema is near-plain Postgres by
-design; see SPEC §13.
+Migrations live in `supabase/migrations/` (plain SQL). `npm run setup` (and
+`supabase start`) apply them automatically; in production they're applied by
+the deploy workflow. To reset a local DB to a clean schema, use
+`npm run db:reset`. The schema is near-plain Postgres by design; see SPEC §13.
+
+### Connecting to cloud Supabase instead
+
+`npm run setup` targets a **local** Supabase stack — the recommended default.
+To point at a hosted project instead, skip setup and fill in `SUPABASE_URL`,
+`SUPABASE_SERVICE_ROLE_KEY`, `NEXT_PUBLIC_SUPABASE_ANON_KEY`, and
+`APP_ENCRYPTION_KEY` in `.env.local` by hand (copy from `.env.example`).
 
 ### Workflows
 

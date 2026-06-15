@@ -9,10 +9,15 @@
  *
  * Usage: SUPABASE_URL=... SUPABASE_SERVICE_ROLE_KEY=... npx tsx scripts/seed.ts
  */
+import { config } from "dotenv";
 import { readdirSync, readFileSync } from "fs";
 import { join } from "path";
 import { createClient } from "@supabase/supabase-js";
 import { load } from "js-yaml";
+
+// Load .env.local for local runs (`npm run seed`). In CI/prod the file is
+// absent and the vars come from the real environment — config() is a no-op then.
+config({ path: ".env.local" });
 
 const url = process.env.SUPABASE_URL;
 const key = process.env.SUPABASE_SERVICE_ROLE_KEY;

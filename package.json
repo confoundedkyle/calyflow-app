@@ -3,6 +3,7 @@
   "version": "0.1.0",
   "private": true,
   "scripts": {
+    "setup": "node scripts/setup-local.mjs",
     "dev": "next dev",
     "build": "next build",
     "start": "next start",
@@ -10,10 +11,16 @@
     "typecheck": "tsc --noEmit",
     "test": "vitest run",
     "test:watch": "vitest",
+    "db:start": "supabase start",
+    "db:stop": "supabase stop",
+    "db:reset": "supabase db reset && npm run seed",
     "seed": "tsx scripts/seed.ts",
     "sync-models": "tsx scripts/sync-models.ts",
     "seed-default-kb": "tsx scripts/seed-default-kb.ts",
     "drive": "node scripts/drive.mjs"
+  },
+  "engines": {
+    "node": ">=22"
   },
   "dependencies": {
     "@ai-sdk/anthropic": "^3.0.82",
