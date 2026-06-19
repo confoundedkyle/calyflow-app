@@ -113,10 +113,27 @@ export async function createProjectChannelAction(
     throw new Error("Connect Slack first in Settings → Connectors.");
   }
   const token = await getValidAccessToken(connection);
-  const { id, name } = await slackAdapter.createChannel(
-    token,
-    slugifyChannel(project.name),
-  );
+  let id: string;
+  let name: string;
+  try {
+    ({ id, name } = await slackAdapter.createChannel(
+      token,
+      slugifyChannel(project.name),
+    ));
+  } catch (err) {
+    // The channel-creation scope (channels:manage) was added after the first
+    // Slack apps were connected — a workspace linked before then can't create
+    // channels until it reconnects to grant it. Turn Slack's raw "missing_scope"
+    // into an actionable message; pick an existing channel as the alternative.
+    if (err instanceof Error && err.message.includes("missing_scope")) {
+      throw new Error(
+        "Slack needs the “channels:manage” permission to create a channel. " +
+          "Reconnect Slack in Settings → Connectors to grant it, or pick an " +
+          "existing channel above.",
+      );
+    }
+    throw err;
+  }
 
   const { error } = await db()
     .from("projects")

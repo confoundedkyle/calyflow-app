@@ -14,6 +14,7 @@ import type { ConnectorAdapter, OAuthTokens } from "./types";
 // Scopes are bot scopes. chat:write posts messages; channels:read +
 // groups:read list public/private channels for the project channel picker;
 // channels:join lets the bot add itself to a public channel it should post in;
+// channels:manage lets it create the per-project "dedicated channel";
 // users:read resolves member names for nicer reports; commands powers the
 // /calyflow slash command and app_mentions:read delivers @Calyflow mentions
 // (the inbound bot — workspaces connected before these scopes existed must
@@ -26,6 +27,7 @@ export const SLACK_BOT_SCOPES = [
   "chat:write",
   "channels:read",
   "channels:join",
+  "channels:manage",
   "groups:read",
   "users:read",
   "commands",

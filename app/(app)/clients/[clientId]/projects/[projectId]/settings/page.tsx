@@ -108,11 +108,14 @@ export default async function ProjectSettingsPage({
                 Prefer a fresh channel? Create one named after this project and
                 map it automatically.
               </p>
-              <form action={createProjectChannelAction.bind(null, projectId)}>
+              <ToastForm
+                action={createProjectChannelAction.bind(null, projectId)}
+                message="Dedicated channel created"
+              >
                 <Button variant="smallSecondary" type="submit">
                   Create a dedicated channel
                 </Button>
-              </form>
+              </ToastForm>
             </div>
           </div>
         )}
