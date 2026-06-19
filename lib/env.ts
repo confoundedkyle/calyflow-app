@@ -168,6 +168,21 @@ export const env = {
   get zohoRecruitApiBase() {
     return (process.env.ZOHO_RECRUIT_API_BASE ?? "https://recruit.zoho.com").replace(/\/$/, "");
   },
+  /** Slack OAuth app credentials. Shared-app model by default: the hosted
+   *  Calyflow Slack app (or a self-hoster's own app) lives in env, so workspaces
+   *  connect in one click. The start/callback routes also honour a per-workspace
+   *  oauth_client_id if one is ever stored (BYO fallback). The signing secret
+   *  verifies inbound slash-command / event requests (PR2). */
+  get slackClientId() {
+    return process.env.SLACK_CLIENT_ID ?? "";
+  },
+  get slackClientSecret() {
+    return process.env.SLACK_CLIENT_SECRET ?? "";
+  },
+  get slackSigningSecret() {
+    return process.env.SLACK_SIGNING_SECRET ?? "";
+  },
+
   /** Svix signing secret for the Clerk webhook endpoint. */
   get clerkWebhookSigningSecret() {
     return process.env.CLERK_WEBHOOK_SIGNING_SECRET ?? "";

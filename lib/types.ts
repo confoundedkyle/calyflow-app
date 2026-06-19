@@ -34,6 +34,8 @@ export interface Client {
   created_at: string;
 }
 
+export type ReportFrequency = "off" | "daily" | "weekly";
+
 export interface Project {
   id: string;
   client_id: string;
@@ -41,6 +43,14 @@ export interface Project {
   status: "active" | "archived";
   /** Hidden demo project backing the /demo page (kept out of normal lists). */
   is_demo: boolean;
+  /** Slack channel this project posts to (id like C0123456789), or null. */
+  slack_channel_id: string | null;
+  /** Display name of that channel, e.g. proj-acme-devops (cosmetic). */
+  slack_channel_name: string | null;
+  /** Cadence of the automated Slack project report. */
+  report_frequency: ReportFrequency;
+  /** Last time the reporter posted, to avoid double-sends in a window. */
+  report_last_sent_at: string | null;
   created_at: string;
 }
 

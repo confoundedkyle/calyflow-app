@@ -444,6 +444,69 @@ export async function getWorkspaceAgent(
   return data as WorkspaceAgent | null;
 }
 
+/** A workspace's imported copy of a library agent, found via the library slug —
+ *  lets automated triggers (the report cron) locate the right workspace agent
+ *  without knowing its id. Returns the newest non-archived copy. */
+export async function getWorkspaceAgentByLibrarySlug(
+  workspaceId: string,
+  slug: string,
+): Promise<WorkspaceAgent | null> {
+  const { data } = await db()
+    .from("workspace_agents")
+    .select("*, library:library_agents!inner(slug)")
+    .eq("workspace_id", workspaceId)
+    .eq("library_agents.slug", slug)
+    .is("archived_at", null)
+    .order("created_at", { ascending: false })
+    .limit(1)
+    .maybeSingle();
+  return (data as WorkspaceAgent) ?? null;
+}
+
+/** Active projects that want an automated Slack report, across ALL workspaces —
+ *  the report cron is unauthenticated (service-role) and fans out over every
+ *  workspace, so this read is intentionally NOT workspace-scoped. */
+export async function listProjectsDueForReport(): Promise<
+  (Project & { client: Pick<Client, "id" | "name" | "workspace_id"> })[]
+> {
+  const { data, error } = await db()
+    .from("projects")
+    .select("*, client:clients!inner(id, name, workspace_id)")
+    .eq("status", "active")
+    .neq("report_frequency", "off")
+    .not("slack_channel_id", "is", null);
+  if (error) throw error;
+  return (data ?? []) as (Project & {
+    client: Pick<Client, "id" | "name" | "workspace_id">;
+  })[];
+}
+
+/** A real user id to attribute automated runs to (the report cron has no
+ *  session). Prefers a recently-active member, then any member with saved prefs,
+ *  else a synthetic id so the run still records. */
+export async function getWorkspaceServiceUserId(
+  workspaceId: string,
+): Promise<string> {
+  const { data: recent } = await db()
+    .from("agent_runs")
+    .select("created_by, workspace_agents!inner(workspace_id)")
+    .eq("workspace_agents.workspace_id", workspaceId)
+    .not("created_by", "is", null)
+    .order("created_at", { ascending: false })
+    .limit(1)
+    .maybeSingle();
+  const recentUser = (recent as { created_by?: string } | null)?.created_by;
+  if (recentUser) return recentUser;
+
+  const { data: member } = await db()
+    .from("user_preferences")
+    .select("user_id")
+    .eq("workspace_id", workspaceId)
+    .limit(1)
+    .maybeSingle();
+  return (member?.user_id as string | undefined) ?? "slack-reporter";
+}
+
 export async function listAgentRuns(
   workspaceId: string,
   projectId: string,

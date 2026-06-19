@@ -19,7 +19,7 @@ const CORS_HEADERS = {
 
 export interface PublicCatalogItem {
   name: string;
-  category: "ai" | "ats" | "crm" | "data" | "email" | "tool";
+  category: "ai" | "ats" | "crm" | "data" | "email" | "comms" | "tool";
   status: "available" | "coming_soon";
   // Company's public web domain and a brand-logo URL derived from it. Omitted
   // when we don't have a domain on file (e.g. AI providers, "Local models").

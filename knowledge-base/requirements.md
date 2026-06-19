@@ -70,6 +70,12 @@ library instructions into the copy. A library row retired from YAML orphans copi
   Clerk** (source of truth; mirrored to the table for run-time reads). Email
   section — company name, company website (bare domain), plaintext signature —
   feeds the recruiter/sender context block above. Per-user, so no admin gate.
+- **Project → Settings tab** (`/clients/[c]/projects/[p]/settings`): maps the
+  project to a **Slack channel** and sets the **report cadence** (off/daily/weekly).
+  Persists `slack_channel_id` / `slack_channel_name` / `report_frequency` on
+  `projects` (`updateProjectSlackSettingsAction`; `createProjectChannelAction`
+  spins up a dedicated channel). Turning reports on auto-imports the
+  `slack-daily-report` agent into the workspace.
 - **Library (`/library`)**: curated catalog to import from.
 - **Demo (`/demo`)**: the real CV Screener agent, end-to-end.
 - **Run detail**: `/runs/[id]` (workflow), `/agent-runs/[id]` (agent). Usage at
@@ -77,6 +83,30 @@ library instructions into the copy. A library row retired from YAML orphans copi
 - **Canvas** ("How it works"): `WorkflowCanvas` from a graph built by
   `deriveAgentGraph` / `deriveWorkflowGraph` (`lib/workflow-graph.ts`, pure). Clicking
   a node opens a modal; the skill node shows the full instructions.
+
+## Slack connector & reporting (a "comms" connector)
+Slack is a workspace connector (`provider: "slack"`, category `comms`) — shared
+OAuth app by default (`SLACK_CLIENT_ID/SECRET` in env, one-click Connect), with
+per-workspace BYO as a fallback the start/callback routes already honour
+(`oauth_client_id || env`). The stored credential is a non-expiring **bot token**
+(no refresh). Adapter: `lib/integrations/slack.ts` (`postMessage`, `listChannels`,
+`createChannel`, `joinChannel`); agent tools `slack_post_message` /
+`slack_list_channels`. `lib/slack.ts` posts directly (non-LLM path) and converts
+Markdown→Slack mrkdwn; `slackDeliveryBlock()` holds the "how to talk to hiring
+managers in Slack" guidance.
+
+**Headless runs.** `runAgentHeadless()` (`lib/agents/run.ts`) runs an agent to
+completion without a session or stream — the shared core for automated triggers.
+The interactive route (`/api/agents/run`) and it both use
+`resolveConnectorTokens()` (`lib/agents/connector-tokens.ts`) and the prompt
+blocks in `lib/agents/prompt.ts`.
+
+**Daily/weekly reports.** The `slack-daily-report` agent ("Reporting on Slack")
+posts a short, hiring-manager-friendly project digest. `/api/cron/slack-reports`
+(bearer `CRON_SECRET`, like `sync-models`) is pinged hourly by Cloud Scheduler;
+it runs the report agent (as a workspace service user) for each active project
+whose `report_frequency` is due (default send hour 08:00 UTC; `?force=1` bypasses
+the schedule gate for testing) and posts the output to its channel.
 
 ## Public API (`/api/v1`, unauthenticated, marketing site)
 - `GET /library` — catalog (agents + workflows). Marketing metadata + `context` +

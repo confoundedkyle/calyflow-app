@@ -86,12 +86,20 @@ describe("agent library YAMLs", () => {
 
   it("every agent can save its result and any connector categories are valid", () => {
     const knownCategories = Object.keys(CONNECTOR_CATEGORY_LABELS);
+    // Most agents deliver by saving a project document. A few deliver elsewhere
+    // (e.g. the Slack reporter posts its digest to a channel) and intentionally
+    // don't write a document.
+    const nonDocDelivery = new Set(["slack-daily-report"]);
     for (const file of files) {
       const agent = load(readFileSync(join(dir, file), "utf8")) as {
+        slug: string;
         allowed_tools: string[];
       };
-      // Agents write a document; connectors are optional (KB-only agents exist).
-      expect(agent.allowed_tools, file).toContain("calyflow_create_document");
+      if (!nonDocDelivery.has(agent.slug)) {
+        // Document-writing agents must be able to save their result; connectors
+        // are optional (KB-only agents exist).
+        expect(agent.allowed_tools, file).toContain("calyflow_create_document");
+      }
       for (const cat of requiredConnectorCategories(agent.allowed_tools)) {
         expect(knownCategories, `${file}: ${cat}`).toContain(cat);
       }

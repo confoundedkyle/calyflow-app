@@ -1,7 +1,13 @@
 // Connector catalog — mirrors aiwithmichal.com/store/skills. Activation is
 // not built yet; cards render with disabled buttons until each connector ships.
 
-export type ConnectorCategory = "ats" | "crm" | "data" | "email" | "tool";
+export type ConnectorCategory =
+  | "ats"
+  | "crm"
+  | "data"
+  | "email"
+  | "comms"
+  | "tool";
 
 export interface Connector {
   name: string;
@@ -36,6 +42,7 @@ export const CONNECTOR_CATEGORY_LABELS: Record<ConnectorCategory, string> = {
   crm: "CRM",
   data: "Data",
   email: "Email",
+  comms: "Comms",
   tool: "Tool",
 };
 
@@ -78,6 +85,9 @@ export const CONNECTORS: Connector[] = [
   // --- Email (sending on the user's behalf, e.g. agent outreach) ---
   { name: "Gmail", category: "email", blurb: "Send candidate outreach from your own Gmail address.", provider: "gmail", live: true, auth: "oauth" },
   { name: "Microsoft Outlook", category: "email", blurb: "Send candidate outreach from your Outlook / Microsoft 365 mailbox.", provider: "microsoft-outlook", live: true, auth: "oauth" },
+
+  // --- Comms (team messaging — where recruiting agents reach hiring managers) ---
+  { name: "Slack", category: "comms", blurb: "Run recruiting agents and receive project reports in your team's Slack — a channel per project.", provider: "slack", live: true, auth: "oauth", oauthAppHint: "Connect in one click with the Calyflow Slack app. Self-hosting? Create your own app at api.slack.com, add the redirect URI shown above, and set SLACK_CLIENT_ID / SLACK_CLIENT_SECRET." },
 
   // Tools (sourcing & outreach)
   { name: "Apollo", category: "tool", blurb: "Source contact data from the 270M-profile B2B database.", provider: "apollo", live: true, auth: "apikey" },
@@ -202,6 +212,7 @@ export const CONNECTOR_DOMAINS: Record<string, string> = {
   "microsoft-excel": "microsoft.com",
   gmail: "mail.google.com",
   "microsoft-outlook": "outlook.com",
+  slack: "slack.com",
   apollo: "apollo.io",
   brightdata: "brightdata.com",
   contactout: "contactout.com",

@@ -44,6 +44,7 @@ import { recruiteeAdapter } from "../integrations/recruitee";
 import { recruiterflowAdapter } from "../integrations/recruiterflow";
 import { rocketreachAdapter } from "../integrations/rocketreach";
 import { signalhireAdapter } from "../integrations/signalhire";
+import { slackAdapter } from "../integrations/slack";
 import { smartleadAdapter } from "../integrations/smartlead";
 import { smartrecruitersAdapter } from "../integrations/smartrecruiters";
 import { snovAdapter } from "../integrations/snov";
@@ -54,68 +55,18 @@ import { woodpeckerAdapter } from "../integrations/woodpecker";
 import { workableAdapter } from "../integrations/workable";
 import { zohoCrmAdapter } from "../integrations/zoho-crm";
 import { zohoRecruitAdapter } from "../integrations/zoho-recruit";
+import type { ConnectorTokens } from "./connector-tokens";
 import type { Doc } from "../types";
 
 // Agent tools. Each tool's execute closes over a server-derived ToolContext —
 // scope (workspace/project) is NEVER taken from model-provided arguments, so a
 // prompt-injected agent can't reach another workspace's data.
 
-export interface ToolContext {
+export interface ToolContext extends ConnectorTokens {
   workspaceId: string;
   projectId: string;
   clientId: string;
   userId: string;
-  /** Valid access tokens per connector, or null when not connected. */
-  airtableToken: string | null;
-  apolloToken: string | null;
-  ashbyToken: string | null;
-  attioToken: string | null;
-  bamboohrToken: string | null;
-  breezyhrToken: string | null;
-  brightdataToken: string | null;
-  bullhornToken: string | null;
-  catsToken: string | null;
-  contactoutToken: string | null;
-  coresignalToken: string | null;
-  crelateToken: string | null;
-  fathomToken: string | null;
-  firefliesToken: string | null;
-  githubToken: string | null;
-  gmailToken: string | null;
-  gongToken: string | null;
-  googleSheetsToken: string | null;
-  greenhouseToken: string | null;
-  hubspotToken: string | null;
-  hunterToken: string | null;
-  instantlyToken: string | null;
-  jazzhrToken: string | null;
-  jobadderToken: string | null;
-  lemlistToken: string | null;
-  leverToken: string | null;
-  loxoToken: string | null;
-  lushaToken: string | null;
-  manatalToken: string | null;
-  microsoftExcelToken: string | null;
-  microsoftOutlookToken: string | null;
-  mondayToken: string | null;
-  notionToken: string | null;
-  peopledatalabsToken: string | null;
-  pinpointToken: string | null;
-  pipedriveToken: string | null;
-  recruiteeToken: string | null;
-  recruiterflowToken: string | null;
-  rocketreachToken: string | null;
-  signalhireToken: string | null;
-  smartleadToken: string | null;
-  smartrecruitersToken: string | null;
-  snovToken: string | null;
-  teamtailorToken: string | null;
-  tldvToken: string | null;
-  vincereToken: string | null;
-  woodpeckerToken: string | null;
-  workableToken: string | null;
-  zohoCrmToken: string | null;
-  zohoRecruitToken: string | null;
   /** Firecrawl key for the web_* tools — platform env var, not a connection. */
   firecrawlKey: string | null;
   /** Documents the agent created this run (mutated by calyflow_create_document). */
@@ -665,6 +616,42 @@ function buildAll(ctx: ToolContext): ToolSet {
         if (!ctx.gmailToken) return { error: notConnected("Gmail") };
         const { id } = await gmailAdapter.sendEmail(ctx.gmailToken, args);
         return { sent: true, to: args.to, messageId: id };
+      },
+    }),
+
+    slack_list_channels: tool({
+      description:
+        "List the Slack channels this workspace's Slack connection can see (id, name, whether the bot is a member). Use to find the channel id to post to.",
+      inputSchema: z.object({}),
+      execute: async () => {
+        if (!ctx.slackToken) return { error: notConnected("Slack") };
+        return { channels: await slackAdapter.listChannels(ctx.slackToken) };
+      },
+    }),
+
+    slack_post_message: tool({
+      description:
+        "Post a message to a Slack channel by id (e.g. C0123456789). Use Slack mrkdwn: *bold*, _italic_, `code`, and <https://url|label> links (NOT Markdown [label](url)). Keep it concise — this is read in a channel by a hiring manager. Post only when the task asks you to; never invent a channel id.",
+      inputSchema: z.object({
+        channel: z
+          .string()
+          .min(1)
+          .describe("Slack channel id, e.g. C0123456789."),
+        text: z
+          .string()
+          .min(1)
+          .max(35_000)
+          .describe("Message body in Slack mrkdwn."),
+      }),
+      execute: async ({ channel, text }) => {
+        if (!ctx.slackToken) return { error: notConnected("Slack") };
+        // Make sure the bot is in the channel before posting (no-op if already).
+        await slackAdapter.joinChannel(ctx.slackToken, channel);
+        const { ok, ts } = await slackAdapter.postMessage(ctx.slackToken, {
+          channel,
+          text,
+        });
+        return { posted: ok, channel, ts };
       },
     }),
 
@@ -2600,6 +2587,8 @@ export const ALL_TOOL_NAMES = [
   "fireflies_list_meetings",
   "fireflies_get_meeting",
   "gmail_send_email",
+  "slack_list_channels",
+  "slack_post_message",
   "gong_list_calls",
   "gong_get_summary",
   "gong_get_transcript",

@@ -42,6 +42,7 @@ import { recruiteeAdapter } from "./recruitee";
 import { recruiterflowAdapter } from "./recruiterflow";
 import { rocketreachAdapter } from "./rocketreach";
 import { signalhireAdapter } from "./signalhire";
+import { slackAdapter } from "./slack";
 import { smartleadAdapter } from "./smartlead";
 import { smartrecruitersAdapter } from "./smartrecruiters";
 import { snovAdapter } from "./snov";
@@ -99,6 +100,7 @@ const ADAPTERS: Record<string, ConnectorAdapter> = {
   recruiterflow: recruiterflowAdapter,
   rocketreach: rocketreachAdapter,
   signalhire: signalhireAdapter,
+  slack: slackAdapter,
   smartlead: smartleadAdapter,
   smartrecruiters: smartrecruitersAdapter,
   snov: snovAdapter,

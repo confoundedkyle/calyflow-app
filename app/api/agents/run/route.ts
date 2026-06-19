@@ -16,7 +16,6 @@ import {
   getUserPreferences,
   getWorkspaceAgent,
 } from "@/lib/queries";
-import { getValidAccessToken } from "@/lib/integrations";
 import {
   CONNECTOR_CATEGORY_LABELS,
   CONNECTOR_REQUIREMENT_PREFIX,
@@ -25,35 +24,19 @@ import {
   providerToolPrefix,
   requiredConnectorCategories,
 } from "@/lib/connectors";
-import { assembleContext, type AssembledContext } from "@/lib/context";
+import { assembleContext } from "@/lib/context";
 import { ALL_TOOL_NAMES, buildTools, type ToolContext } from "@/lib/agents/tools";
-import type { AgentRunStep, UserPreferences } from "@/lib/types";
+import {
+  resolveConnectorTokens,
+  type ConnectorTokens,
+} from "@/lib/agents/connector-tokens";
+import { contextBlock, personalBlock } from "@/lib/agents/prompt";
+import type { AgentRunStep } from "@/lib/types";
 
 export const maxDuration = 600; // multi-step tool loops can run long
 
 function ndjson(obj: unknown): Uint8Array {
   return new TextEncoder().encode(`${JSON.stringify(obj)}\n`);
-}
-
-/** Folds assembled project/KB context into a system-prompt block so the agent
- *  starts with full context (the JD, scorecards, notes) instead of having to
- *  guess search terms. The read tools remain for anything not included here
- *  (e.g. CVs, or docs trimmed by the per-scope caps). */
-function contextBlock(c: AssembledContext): string {
-  const sections: [string, string][] = [
-    ["Workspace knowledge base", c.workspaceKb],
-    ["Client knowledge base", c.clientKb],
-    ["Client files", c.clientFiles],
-    ["Project files", c.projectFiles],
-  ].filter(([, v]) => v && v.trim()) as [string, string][];
-  if (sections.length === 0) return "";
-  const body = sections.map(([t, v]) => `## ${t}\n${v}`).join("\n\n");
-  return (
-    "# Project context\nThe following documents from this project and its " +
-    "knowledge base are already available — use them directly; only call the " +
-    "search/read tools for anything not present here.\n\n" +
-    body
-  );
 }
 
 /** A file the user attached for this run only (extracted client-side text,
@@ -102,35 +85,6 @@ function attachmentsBlock(attachments: RunAttachment[]): string {
     "text is included here, so don't call the search/read tools to find them.\n\n" +
     body
   );
-}
-
-/** The recruiter's own details from Settings > Personal, folded into every
- *  agent run as HIGHER-priority context than the knowledge base — so an agent
- *  uses the recruiter's real name, company, and signature, and these win over
- *  any conflicting KB info. */
-function personalBlock(p: UserPreferences | null): string {
-  if (!p) return "";
-  const name = [p.first_name, p.last_name].filter(Boolean).join(" ").trim();
-  const lines: string[] = [];
-  if (name) lines.push(`- Recruiter's name: ${name}`);
-  if (p.company_name) lines.push(`- Recruiter's company name: ${p.company_name}`);
-  if (p.company_website)
-    lines.push(`- Recruiter's company website: ${p.company_website}`);
-  const sig = p.email_signature?.trim();
-  if (lines.length === 0 && !sig) return "";
-  let out =
-    "# Recruiter & sender details\n" +
-    "These are the recruiter's own details from their Calyflow settings. They " +
-    "take precedence over anything in the knowledge base or project context " +
-    "above — if a detail here conflicts with the KB, use THIS one.\n";
-  if (lines.length > 0) out += `\n${lines.join("\n")}\n`;
-  if (sig)
-    out +=
-      "\n## Email signature\n" +
-      "Use this verbatim when signing off emails; do not alter or reformat it.\n" +
-      sig +
-      "\n";
-  return out.trim();
 }
 
 function summarize(value: unknown): string {
@@ -254,169 +208,9 @@ export async function POST(request: NextRequest) {
   // (refreshing if needed). A configured-but-broken connection fails the run
   // early with a clear reconnect message; a not-yet-connected one stays null so
   // its tools report "not connected" rather than failing the whole run.
-  const tokenFor = async (
-    prefix: string,
-    provider: string,
-  ): Promise<string | null> => {
-    if (!allowed.some((t) => t.startsWith(prefix))) return null;
-    const connection = await getConnection(session.workspaceId, provider);
-    if (!connection) return null;
-    return getValidAccessToken(connection);
-  };
-  let airtableToken: string | null = null;
-  let apolloToken: string | null = null;
-  let ashbyToken: string | null = null;
-  let attioToken: string | null = null;
-  let bamboohrToken: string | null = null;
-  let breezyhrToken: string | null = null;
-  let brightdataToken: string | null = null;
-  let bullhornToken: string | null = null;
-  let catsToken: string | null = null;
-  let contactoutToken: string | null = null;
-  let coresignalToken: string | null = null;
-  let crelateToken: string | null = null;
-  let fathomToken: string | null = null;
-  let firefliesToken: string | null = null;
-  let githubToken: string | null = null;
-  let gmailToken: string | null = null;
-  let gongToken: string | null = null;
-  let googleSheetsToken: string | null = null;
-  let greenhouseToken: string | null = null;
-  let hubspotToken: string | null = null;
-  let hunterToken: string | null = null;
-  let instantlyToken: string | null = null;
-  let jazzhrToken: string | null = null;
-  let jobadderToken: string | null = null;
-  let lemlistToken: string | null = null;
-  let leverToken: string | null = null;
-  let loxoToken: string | null = null;
-  let lushaToken: string | null = null;
-  let manatalToken: string | null = null;
-  let microsoftExcelToken: string | null = null;
-  let microsoftOutlookToken: string | null = null;
-  let mondayToken: string | null = null;
-  let notionToken: string | null = null;
-  let peopledatalabsToken: string | null = null;
-  let pinpointToken: string | null = null;
-  let pipedriveToken: string | null = null;
-  let recruiteeToken: string | null = null;
-  let recruiterflowToken: string | null = null;
-  let rocketreachToken: string | null = null;
-  let signalhireToken: string | null = null;
-  let smartleadToken: string | null = null;
-  let smartrecruitersToken: string | null = null;
-  let snovToken: string | null = null;
-  let teamtailorToken: string | null = null;
-  let tldvToken: string | null = null;
-  let vincereToken: string | null = null;
-  let woodpeckerToken: string | null = null;
-  let workableToken: string | null = null;
-  let zohoCrmToken: string | null = null;
-  let zohoRecruitToken: string | null = null;
+  let connectorTokens: ConnectorTokens;
   try {
-    [
-      airtableToken,
-      apolloToken,
-      ashbyToken,
-      attioToken,
-      bamboohrToken,
-      breezyhrToken,
-      brightdataToken,
-      bullhornToken,
-      catsToken,
-      contactoutToken,
-      coresignalToken,
-      crelateToken,
-      fathomToken,
-      firefliesToken,
-      githubToken,
-      gmailToken,
-      gongToken,
-      googleSheetsToken,
-      greenhouseToken,
-      hubspotToken,
-      hunterToken,
-      instantlyToken,
-      jazzhrToken,
-      jobadderToken,
-      lemlistToken,
-      leverToken,
-      loxoToken,
-      lushaToken,
-      manatalToken,
-      microsoftExcelToken,
-      microsoftOutlookToken,
-      mondayToken,
-      notionToken,
-      peopledatalabsToken,
-      pinpointToken,
-      pipedriveToken,
-      recruiteeToken,
-      recruiterflowToken,
-      rocketreachToken,
-      signalhireToken,
-      smartleadToken,
-      smartrecruitersToken,
-      snovToken,
-      teamtailorToken,
-      tldvToken,
-      vincereToken,
-      woodpeckerToken,
-      workableToken,
-      zohoCrmToken,
-      zohoRecruitToken,
-    ] = await Promise.all([
-      tokenFor("airtable_", "airtable"),
-      tokenFor("apollo_", "apollo"),
-      tokenFor("ashby_", "ashby"),
-      tokenFor("attio_", "attio"),
-      tokenFor("bamboohr_", "bamboohr"),
-      tokenFor("breezyhr_", "breezyhr"),
-      tokenFor("brightdata_", "brightdata"),
-      tokenFor("bullhorn_", "bullhorn"),
-      tokenFor("cats_", "cats"),
-      tokenFor("contactout_", "contactout"),
-      tokenFor("coresignal_", "coresignal"),
-      tokenFor("crelate_", "crelate"),
-      tokenFor("fathom_", "fathom"),
-      tokenFor("fireflies_", "fireflies"),
-      tokenFor("github_", "github"),
-      tokenFor("gmail_", "gmail"),
-      tokenFor("gong_", "gong"),
-      tokenFor("googlesheets_", "google-sheets"),
-      tokenFor("greenhouse_", "greenhouse"),
-      tokenFor("hubspot_", "hubspot"),
-      tokenFor("hunter_", "hunter"),
-      tokenFor("instantly_", "instantly"),
-      tokenFor("jazzhr_", "jazzhr"),
-      tokenFor("jobadder_", "jobadder"),
-      tokenFor("lemlist_", "lemlist"),
-      tokenFor("lever_", "lever"),
-      tokenFor("loxo_", "loxo"),
-      tokenFor("lusha_", "lusha"),
-      tokenFor("manatal_", "manatal"),
-      tokenFor("excel_", "microsoft-excel"),
-      tokenFor("outlook_", "microsoft-outlook"),
-      tokenFor("monday_", "monday"),
-      tokenFor("notion_", "notion"),
-      tokenFor("peopledatalabs_", "peopledatalabs"),
-      tokenFor("pinpoint_", "pinpoint"),
-      tokenFor("pipedrive_", "pipedrive"),
-      tokenFor("recruitee_", "recruitee"),
-      tokenFor("recruiterflow_", "recruiterflow"),
-      tokenFor("rocketreach_", "rocketreach"),
-      tokenFor("signalhire_", "signalhire"),
-      tokenFor("smartlead_", "smartlead"),
-      tokenFor("smartrecruiters_", "smartrecruiters"),
-      tokenFor("snov_", "snov"),
-      tokenFor("teamtailor_", "teamtailor"),
-      tokenFor("tldv_", "tldv"),
-      tokenFor("vincere_", "vincere"),
-      tokenFor("woodpecker_", "woodpecker"),
-      tokenFor("workable_", "workable"),
-      tokenFor("zohocrm_", "zoho-crm"),
-      tokenFor("zohorecruit_", "zoho-recruit"),
-    ]);
+    connectorTokens = await resolveConnectorTokens(session.workspaceId, allowed);
   } catch (err) {
     return NextResponse.json(
       { error: err instanceof Error ? err.message : "Connection error" },
@@ -470,56 +264,7 @@ export async function POST(request: NextRequest) {
     projectId,
     clientId: project.client.id,
     userId: session.userId,
-    airtableToken,
-    apolloToken,
-    ashbyToken,
-    attioToken,
-    bamboohrToken,
-    breezyhrToken,
-    brightdataToken,
-    bullhornToken,
-    catsToken,
-    contactoutToken,
-    coresignalToken,
-    crelateToken,
-    fathomToken,
-    firefliesToken,
-    githubToken,
-    gmailToken,
-    gongToken,
-    googleSheetsToken,
-    greenhouseToken,
-    hubspotToken,
-    hunterToken,
-    instantlyToken,
-    jazzhrToken,
-    jobadderToken,
-    lemlistToken,
-    leverToken,
-    loxoToken,
-    lushaToken,
-    manatalToken,
-    microsoftExcelToken,
-    microsoftOutlookToken,
-    mondayToken,
-    notionToken,
-    peopledatalabsToken,
-    pinpointToken,
-    pipedriveToken,
-    recruiteeToken,
-    recruiterflowToken,
-    rocketreachToken,
-    signalhireToken,
-    smartleadToken,
-    smartrecruitersToken,
-    snovToken,
-    teamtailorToken,
-    tldvToken,
-    vincereToken,
-    woodpeckerToken,
-    workableToken,
-    zohoCrmToken,
-    zohoRecruitToken,
+    ...connectorTokens,
     firecrawlKey: env.firecrawlApiKey || null,
     createdDocIds: [],
   };
