@@ -10,6 +10,9 @@ const isPublicRoute = createRouteMatcher([
   "/api/health", // deploy smoke test hits this unauthenticated to verify DB
   "/api/cron(.*)",
   "/api/webhooks(.*)",
+  // Inbound Slack (slash command + events) is server-to-server with no Clerk
+  // session; it authenticates itself via Slack request-signature verification.
+  "/api/slack(.*)",
   "/api/v1/connectors",
   "/api/v1/library(.*)",
 ]);
