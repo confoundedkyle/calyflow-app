@@ -108,6 +108,20 @@ it runs the report agent (as a workspace service user) for each active project
 whose `report_frequency` is due (default send hour 08:00 UTC; `?force=1` bypasses
 the schedule gate for testing) and posts the output to its channel.
 
+**Inbound bot (run agents from Slack).** `/calyflow <agent> <task>`
+(`app/api/slack/commands`) and `@Calyflow <agent> <task>` mentions
+(`app/api/slack/events`) run a recruiting agent and post the result back.
+Requests are authenticated by Slack signature (`verifySlackRequest`,
+`SLACK_SIGNING_SECRET`) — inbound assumes ONE Slack app, not per-workspace. The
+channel resolves the workspace via `getProjectBySlackChannel` (channel → project →
+workspace); shared logic lives in `lib/agents/slack-bot.ts`
+(`resolveAgentForToken` by library slug then name, `agentMenuText` skill menu,
+`runAndPost`). Both routes **ack within 3 s** and do the run in Next.js `after()`
+(`maxDuration` 600). `/calyflow` alone (or `help`) lists the workspace's runnable
+agents. Needs the `commands` + `app_mentions:read` scopes, so workspaces connected
+before Stage 2 must reconnect. Slack-app config (slash command + Event
+Subscriptions request URLs, scopes) is set on the Slack app, not in code.
+
 ## Public API (`/api/v1`, unauthenticated, marketing site)
 - `GET /library` — catalog (agents + workflows). Marketing metadata + `context` +
   `documents` + `connectors`. **Never** leaks `prompt_template` / `instructions`.

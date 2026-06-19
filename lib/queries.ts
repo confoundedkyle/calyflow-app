@@ -481,6 +481,26 @@ export async function listProjectsDueForReport(): Promise<
   })[];
 }
 
+/** The active project mapped to a Slack channel, across ALL workspaces — the
+ *  inbound Slack bot is authenticated by Slack's signature, not a session, so it
+ *  resolves the workspace from the channel. Returns null when no project maps it. */
+export async function getProjectBySlackChannel(
+  channelId: string,
+): Promise<
+  (Project & { client: Pick<Client, "id" | "name" | "workspace_id"> }) | null
+> {
+  const { data } = await db()
+    .from("projects")
+    .select("*, client:clients!inner(id, name, workspace_id)")
+    .eq("slack_channel_id", channelId)
+    .eq("status", "active")
+    .limit(1)
+    .maybeSingle();
+  return (data as
+    | (Project & { client: Pick<Client, "id" | "name" | "workspace_id"> })
+    | null) ?? null;
+}
+
 /** A real user id to attribute automated runs to (the report cron has no
  *  session). Prefers a recently-active member, then any member with saved prefs,
  *  else a synthetic id so the run still records. */

@@ -45,6 +45,8 @@ export async function runAgentHeadless(params: {
     "id" | "instructions" | "allowed_tools" | "model" | "max_steps" | "name"
   >;
   task?: string;
+  /** Extra system-prompt guidance appended last (e.g. Slack delivery rules). */
+  extraSystem?: string;
 }): Promise<HeadlessRunResult> {
   const { workspaceId, userId, project, agent } = params;
 
@@ -128,6 +130,9 @@ export async function runAgentHeadless(params: {
     if (block) systemPrompt = `${systemPrompt}\n\n${block}`;
   } catch (err) {
     console.warn("Headless personal preferences load failed:", err);
+  }
+  if (params.extraSystem?.trim()) {
+    systemPrompt = `${systemPrompt}\n\n${params.extraSystem.trim()}`;
   }
 
   const userPrompt =

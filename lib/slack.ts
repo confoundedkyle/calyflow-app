@@ -67,6 +67,7 @@ export async function postToChannel(
   workspaceId: string,
   channelId: string,
   markdown: string,
+  opts: { threadTs?: string } = {},
 ): Promise<{ ok: boolean; reason?: string; ts?: string }> {
   const connection = await getConnection(workspaceId, "slack");
   if (!connection || connection.status !== "active") {
@@ -77,6 +78,7 @@ export async function postToChannel(
   const { ok, ts } = await slackAdapter.postMessage(token, {
     channel: channelId,
     text: clip(markdownToMrkdwn(markdown)),
+    threadTs: opts.threadTs,
   });
   return { ok, ts };
 }

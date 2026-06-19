@@ -14,8 +14,10 @@ import type { ConnectorAdapter, OAuthTokens } from "./types";
 // Scopes are bot scopes. chat:write posts messages; channels:read +
 // groups:read list public/private channels for the project channel picker;
 // channels:join lets the bot add itself to a public channel it should post in;
-// users:read resolves member names for nicer reports. (commands +
-// app_mentions:read are added when the inbound bot ships — PR2.)
+// users:read resolves member names for nicer reports; commands powers the
+// /calyflow slash command and app_mentions:read delivers @Calyflow mentions
+// (the inbound bot — workspaces connected before these scopes existed must
+// reconnect to grant them).
 const OAUTH_AUTHORIZE = "https://slack.com/oauth/v2/authorize";
 const OAUTH_TOKEN = "https://slack.com/api/oauth.v2.access";
 const SLACK_API = "https://slack.com/api";
@@ -26,6 +28,8 @@ export const SLACK_BOT_SCOPES = [
   "channels:join",
   "groups:read",
   "users:read",
+  "commands",
+  "app_mentions:read",
 ].join(",");
 
 /** A Slack conversation (channel) surfaced in the project channel picker. */
@@ -37,10 +41,11 @@ export interface SlackChannel {
 }
 
 export interface SlackAdapter extends ConnectorAdapter {
-  /** Post a message (Slack mrkdwn) to a channel id. Returns the message ts. */
+  /** Post a message (Slack mrkdwn) to a channel id, optionally threaded under a
+   *  parent message (threadTs). Returns the message ts. */
   postMessage(
     botToken: string,
-    args: { channel: string; text: string },
+    args: { channel: string; text: string; threadTs?: string },
   ): Promise<{ ok: boolean; ts?: string }>;
   /** List the channels the bot can see, for the project channel picker. */
   listChannels(botToken: string): Promise<SlackChannel[]>;
@@ -120,11 +125,17 @@ export const slackAdapter: SlackAdapter = {
     return tokens;
   },
 
-  async postMessage(botToken, { channel, text }) {
+  async postMessage(botToken, { channel, text, threadTs }) {
     const json = await api<{ ok: boolean; ts?: string }>(
       botToken,
       "chat.postMessage",
-      { channel, text, unfurl_links: false, mrkdwn: true },
+      {
+        channel,
+        text,
+        unfurl_links: false,
+        mrkdwn: true,
+        ...(threadTs ? { thread_ts: threadTs } : {}),
+      },
     );
     return { ok: json.ok, ts: json.ts };
   },
