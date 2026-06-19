@@ -25,6 +25,7 @@ import {
   requiredConnectorCategories,
 } from "@/lib/connectors";
 import { assembleContext } from "@/lib/context";
+import { parseEffort, effortMaxSteps, effortGuidance } from "@/lib/effort";
 import { ALL_TOOL_NAMES, buildTools, type ToolContext } from "@/lib/agents/tools";
 import {
   resolveConnectorTokens,
@@ -107,6 +108,9 @@ export async function POST(request: NextRequest) {
   const agentId = String(body?.agentId ?? "");
   const task = typeof body?.task === "string" ? body.task : "";
   const attachments = parseAttachments(body?.attachments);
+  // How hard the agent should work this run — tunes the tool-call budget and
+  // the research-depth guidance injected below. Defaults to medium.
+  const effort = parseEffort(body?.effort);
   // Continuing an existing chat when a valid conversation id is passed; a new
   // conversation otherwise. Each turn is still its own agent_runs row.
   const UUID_RE =
@@ -317,6 +321,10 @@ export async function POST(request: NextRequest) {
   const attachBlock = attachmentsBlock(attachments);
   if (attachBlock) systemPrompt = `${systemPrompt}\n\n${attachBlock}`;
 
+  // Tell the agent how hard to work this run (how broadly to use its tools).
+  // Paired with the effort-scaled step budget on `stopWhen` below.
+  systemPrompt = `${systemPrompt}\n\n${effortGuidance(effort)}`;
+
   // Thread the earlier turns of this conversation back as context (each user
   // task + the assistant's saved reply) so a follow-up continues the chat.
   const priorMessages: { role: "user" | "assistant"; content: string }[] = [];
@@ -375,7 +383,7 @@ export async function POST(request: NextRequest) {
             system: systemPrompt,
             messages,
             tools,
-            stopWhen: stepCountIs(agent.max_steps ?? 12),
+            stopWhen: stepCountIs(effortMaxSteps(agent.max_steps, effort)),
             abortSignal: AbortSignal.timeout(540_000),
             onError: ({ error }) => {
               streamError = error;

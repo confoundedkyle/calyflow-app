@@ -8,7 +8,9 @@ import remarkGfm from "remark-gfm";
 import { usePersistedSelection } from "@/lib/use-persisted-selection";
 import { uploadDocumentAction } from "@/lib/actions/documents";
 import { connectorLabel } from "@/lib/connectors";
+import { DEFAULT_EFFORT, EFFORT_LEVELS, type Effort } from "@/lib/effort";
 import type { AgentChatTurn } from "@/lib/types";
+import { EffortSlider } from "./effort-slider";
 import { Button } from "./ui";
 
 /** A required project document the agent needs before it can run. */
@@ -263,6 +265,13 @@ export function AgentRunPanel({
     Record<string, Record<string, string>>
   >({});
   const [task, setTask] = useState("");
+  // How hard the agent works this run (tool-call budget + research depth).
+  // Persisted per project, like the agent and connector picks.
+  const [effort, setEffort] = usePersistedSelection(
+    `calyflow:run-panel:effort:${projectId}`,
+    DEFAULT_EFFORT,
+    (v) => EFFORT_LEVELS.some((l) => l.value === v),
+  );
   const [turns, setTurns] = useState<ChatTurn[]>(
     () => initialConversation?.turns.map(toChatTurn) ?? [],
   );
@@ -518,6 +527,7 @@ export function AgentRunPanel({
           conversationId,
           connectors: choices,
           attachments: sentAttachments,
+          effort,
         }),
       });
       if (!response.ok) {
@@ -692,6 +702,12 @@ export function AgentRunPanel({
           })}
         </div>
       )}
+
+      <EffortSlider
+        value={effort as Effort}
+        onChange={setEffort}
+        disabled={running}
+      />
 
       {blocked && (
         <div className="mt-4 rounded-card border border-amber-400/30 bg-amber-400/8 px-4 py-3">
