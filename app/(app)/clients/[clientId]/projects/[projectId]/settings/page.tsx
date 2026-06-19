@@ -26,6 +26,23 @@ export default async function ProjectSettingsPage({
     ? `${project.slack_channel_id}|${project.slack_channel_name ?? ""}`
     : "";
 
+  // Always offer the currently-mapped channel as an option, even if the Slack
+  // channel list doesn't include it yet — a channel created via "Create a
+  // dedicated channel" can lag the list API, and we never want the picker to
+  // silently drop the project's real channel.
+  const channelOptions = [...(channels ?? [])];
+  if (
+    project.slack_channel_id &&
+    !channelOptions.some((c) => c.id === project.slack_channel_id)
+  ) {
+    channelOptions.unshift({
+      id: project.slack_channel_id,
+      name: project.slack_channel_name ?? project.slack_channel_id,
+      isPrivate: false,
+      isMember: true,
+    });
+  }
+
   return (
     <div className="grid max-w-3xl gap-6">
       <Card>
@@ -57,14 +74,18 @@ export default async function ProjectSettingsPage({
                 label="Channel"
                 hint="Where this project's agents post and reports are sent."
               >
-                {channels && channels.length > 0 ? (
+                {channelOptions.length > 0 ? (
+                  // `key` re-mounts the uncontrolled <select> when the mapped
+                  // channel changes (e.g. after creating one) so defaultValue
+                  // re-applies — otherwise it keeps showing the old selection.
                   <select
+                    key={currentChannelValue}
                     name="slackChannel"
                     defaultValue={currentChannelValue}
                     className={inputClass}
                   >
                     <option value="">— Select a channel —</option>
-                    {channels.map((c) => (
+                    {channelOptions.map((c) => (
                       <option key={c.id} value={`${c.id}|${c.name}`}>
                         {c.isPrivate ? "🔒 " : "#"}
                         {c.name}
@@ -73,6 +94,7 @@ export default async function ProjectSettingsPage({
                   </select>
                 ) : (
                   <input
+                    key={currentChannelValue}
                     name="slackChannel"
                     defaultValue={currentChannelValue}
                     placeholder="C0123456789"
