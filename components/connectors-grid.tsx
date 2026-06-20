@@ -5,6 +5,8 @@ import { useRouter } from "next/navigation";
 import {
   CONNECTORS,
   CONNECTOR_CATEGORY_LABELS,
+  CONNECTOR_DOMAINS,
+  connectorFaviconUrl,
   connectorInCategory,
   type ConnectorCategory,
 } from "@/lib/connectors";
@@ -110,7 +112,15 @@ export function ConnectorsGrid({
             className="flex flex-col rounded-card border border-navy-800/12 bg-white p-5"
           >
             <div className="mb-2 flex items-start justify-between gap-3">
-              <h3 className="text-lg font-semibold">{connector.name}</h3>
+              <div className="flex min-w-0 items-center gap-2.5">
+                <ConnectorLogo
+                  name={connector.name}
+                  provider={connector.provider}
+                />
+                <h3 className="truncate text-lg font-semibold">
+                  {connector.name}
+                </h3>
+              </div>
               <span
                 className={`flex-shrink-0 rounded-full px-2.5 py-0.5 text-xs font-semibold ${BADGE_STYLES[connector.category]}`}
               >
@@ -131,6 +141,41 @@ export function ConnectorsGrid({
         ))}
       </div>
     </div>
+  );
+}
+
+/** Brand logo for a connector card — the company favicon (same domain-favicon
+ *  approach as the public API), with a monogram fallback when there's no domain
+ *  or the favicon fails to load. */
+function ConnectorLogo({
+  name,
+  provider,
+}: {
+  name: string;
+  provider?: string;
+}) {
+  const [failed, setFailed] = useState(false);
+  const src = connectorFaviconUrl(provider ? CONNECTOR_DOMAINS[provider] : undefined);
+  if (!src || failed) {
+    return (
+      <span
+        aria-hidden
+        className="flex h-7 w-7 flex-shrink-0 items-center justify-center rounded-md bg-cream-100 text-xs font-bold text-navy-800/40 ring-1 ring-navy-800/10"
+      >
+        {name.charAt(0)}
+      </span>
+    );
+  }
+  return (
+    // eslint-disable-next-line @next/next/no-img-element -- tiny external favicon; next/image would need remotePatterns for ~50 hosts
+    <img
+      src={src}
+      alt=""
+      width={28}
+      height={28}
+      onError={() => setFailed(true)}
+      className="h-7 w-7 flex-shrink-0 rounded-md bg-white object-contain ring-1 ring-navy-800/10"
+    />
   );
 }
 
