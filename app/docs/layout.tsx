@@ -50,6 +50,46 @@ export default function DocsLayout({
           <div className="mx-auto max-w-3xl">{children}</div>
         </main>
       </div>
+
+      <footer className="border-t border-navy-800/10 bg-cream-100/50">
+        <div className="mx-auto flex w-full max-w-6xl flex-col gap-3 px-5 py-6 text-sm text-navy-800/55 sm:flex-row sm:items-center sm:justify-between sm:px-8 lg:px-12">
+          <div className="flex items-center gap-2">
+            <IconAiSpark size={16} className="text-mint-700" />
+            <span>
+              © {new Date().getFullYear()} Calyflow · Open source{" "}
+              <span className="font-mono">(AGPL-3.0)</span>
+            </span>
+          </div>
+          <nav className="flex flex-wrap items-center gap-x-5 gap-y-2">
+            <a
+              href="https://calyflow.ai"
+              className="transition hover:text-mint-700"
+            >
+              Website
+            </a>
+            <Link href="/" className="transition hover:text-mint-700">
+              Open app
+            </Link>
+            <Link href="/docs" className="transition hover:text-mint-700">
+              Docs
+            </Link>
+            <a
+              href="https://github.com/Calyflow/calyflow-app"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="transition hover:text-mint-700"
+            >
+              GitHub
+            </a>
+            <a
+              href="mailto:hello@calyflow.ai"
+              className="transition hover:text-mint-700"
+            >
+              hello@calyflow.ai
+            </a>
+          </nav>
+        </div>
+      </footer>
     </div>
   );
 }
