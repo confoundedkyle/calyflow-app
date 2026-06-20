@@ -24,6 +24,7 @@ export interface ConnectorTokens {
   dropcontactToken: string | null;
   fathomToken: string | null;
   firefliesToken: string | null;
+  fullenrichToken: string | null;
   githubToken: string | null;
   gmailToken: string | null;
   gongToken: string | null;
@@ -90,6 +91,7 @@ const SPECS: TokenSpec[] = [
   { field: "dropcontactToken", prefix: "dropcontact_", provider: "dropcontact" },
   { field: "fathomToken", prefix: "fathom_", provider: "fathom" },
   { field: "firefliesToken", prefix: "fireflies_", provider: "fireflies" },
+  { field: "fullenrichToken", prefix: "fullenrich_", provider: "fullenrich" },
   { field: "githubToken", prefix: "github_", provider: "github" },
   { field: "gmailToken", prefix: "gmail_", provider: "gmail" },
   { field: "gongToken", prefix: "gong_", provider: "gong" },

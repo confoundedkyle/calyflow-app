@@ -19,6 +19,7 @@ import { crelateAdapter } from "../integrations/crelate";
 import { dropcontactAdapter } from "../integrations/dropcontact";
 import { fathomAdapter } from "../integrations/fathom";
 import { firefliesAdapter } from "../integrations/fireflies";
+import { fullenrichAdapter } from "../integrations/fullenrich";
 import { githubAdapter } from "../integrations/github";
 import { firecrawlScrape, firecrawlSearch } from "../integrations/firecrawl";
 import { gmailAdapter } from "../integrations/gmail";
@@ -511,6 +512,34 @@ function buildAll(ctx: ToolContext): ToolSet {
       execute: async (args) => {
         if (!ctx.firefliesToken) return { error: notConnected("Fireflies.ai") };
         return firefliesAdapter.getMeeting(ctx.firefliesToken, args);
+      },
+    }),
+
+    fullenrich_enrich: tool({
+      description:
+        "Enrich one contact via FullEnrich's email + mobile-phone waterfall (15+ vendors). Provide firstName + lastName with a company or domain, or a linkedinUrl. Asynchronous: this returns an enrichment id; read the result with fullenrich_get_result after a few seconds.",
+      inputSchema: z.object({
+        firstName: z.string().optional(),
+        lastName: z.string().optional(),
+        company: z.string().optional().describe("Company name."),
+        domain: z.string().optional().describe("Company website or domain."),
+        linkedinUrl: z.string().optional().describe("LinkedIn profile URL."),
+      }),
+      execute: async (args) => {
+        if (!ctx.fullenrichToken) return { error: notConnected("FullEnrich") };
+        return fullenrichAdapter.enrich(ctx.fullenrichToken, args);
+      },
+    }),
+
+    fullenrich_get_result: tool({
+      description:
+        "Read the result of a FullEnrich enrichment using the enrichment id returned by fullenrich_enrich. May report the waterfall is still running — if so, call again after working on something else for a moment.",
+      inputSchema: z.object({
+        enrichmentId: z.string().describe("Enrichment id from fullenrich_enrich."),
+      }),
+      execute: async (args) => {
+        if (!ctx.fullenrichToken) return { error: notConnected("FullEnrich") };
+        return fullenrichAdapter.getResult(ctx.fullenrichToken, args);
       },
     }),
 
@@ -2714,6 +2743,8 @@ export const ALL_TOOL_NAMES = [
   "fathom_get_transcript",
   "fireflies_list_meetings",
   "fireflies_get_meeting",
+  "fullenrich_enrich",
+  "fullenrich_get_result",
   "gmail_send_email",
   "slack_list_channels",
   "slack_post_message",

@@ -459,6 +459,29 @@ export const DOC_CONNECTORS: Record<string, ConnectorDocContent> = {
       { label: "Dropcontact API docs", url: "https://developer.dropcontact.com/" },
     ],
   },
+  fullenrich: {
+    capabilities: [
+      "Find a verified work email and mobile number for a contact",
+      "Run a 15+ vendor waterfall from a name + company or a LinkedIn URL",
+    ],
+    useCases: [
+      "Get a contactable email and phone for a sourced candidate",
+      "Enrich a thin lead (name + company) into a reachable contact for BD outreach",
+      "Fill in missing mobile numbers before a calling campaign",
+    ],
+    whatYouNeed: ["A FullEnrich account with API access"],
+    steps: [
+      "In FullEnrich, open app.fullenrich.com → API and copy your API key.",
+      "In Calyflow, go to Settings → Connectors → FullEnrich and paste it.",
+    ],
+    configuration: [
+      "Enrichment is asynchronous: a request is submitted, then the result is fetched a few seconds later — agents handle this automatically.",
+      "FullEnrich waterfalls across many data vendors and charges credits only for found results; lookups draw on your FullEnrich balance.",
+    ],
+    links: [
+      { label: "FullEnrich API docs", url: "https://docs.fullenrich.com/" },
+    ],
+  },
   gong: {
     useCases: [
       "Pull the summary of an intake call to brief an agent on the role",
