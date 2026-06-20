@@ -15,6 +15,8 @@ const isPublicRoute = createRouteMatcher([
   "/api/slack(.*)",
   // Public product documentation — readable by anyone, no account needed.
   "/docs(.*)",
+  // High-level product map for LLM agents (llmstxt.org convention).
+  "/llms.txt",
   "/api/v1/connectors",
   "/api/v1/library(.*)",
 ]);
