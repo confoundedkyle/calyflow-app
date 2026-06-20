@@ -35,6 +35,11 @@ const CARDS = [
     body: "Trigger agents and get project reports right in your team's Slack.",
   },
   {
+    href: "/docs/security",
+    title: "Security & privacy",
+    body: "How your data and credentials are kept safe — encryption, isolation, your own keys.",
+  },
+  {
     href: "/docs/self-hosting",
     title: "Self-hosting & OAuth apps",
     body: "Run your own Calyflow instance and wire up connector OAuth apps.",

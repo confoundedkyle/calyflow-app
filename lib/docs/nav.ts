@@ -54,12 +54,15 @@ export const DOC_NAV: DocNavNode[] = [
     ],
   },
   { title: "What agents can do", href: "/docs/capabilities" },
+  { title: "Running agents from Slack", href: "/docs/automation/slack" },
+  { title: "Security & privacy", href: "/docs/security" },
+  { title: "Self-hosting & OAuth apps", href: "/docs/self-hosting" },
+  { title: "FAQ", href: "/docs/faq" },
+  // Connectors is the longest group, so it sits last — keeping the short
+  // standalone links above it where users can actually find them.
   {
     title: "Connectors",
     href: "/docs/connectors",
     children: connectorGroups(),
   },
-  { title: "Running agents from Slack", href: "/docs/automation/slack" },
-  { title: "Self-hosting & OAuth apps", href: "/docs/self-hosting" },
-  { title: "FAQ", href: "/docs/faq" },
 ];
