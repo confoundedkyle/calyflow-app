@@ -73,6 +73,7 @@ export const CONNECTORS: Connector[] = [
   // CRM
   { name: "Attio", category: "crm", blurb: "Query people, companies, and deals from the modern CRM.", provider: "attio", live: true, auth: "apikey" },
   { name: "Close", category: "crm", blurb: "Read client leads and BD opportunities from the sales-focused CRM.", provider: "close", live: true, auth: "apikey", apiKeyHint: "Create an API key in Close under Settings → Developer → API Keys." },
+  { name: "folk", category: "crm", blurb: "Read the people and client companies from the relationship-first CRM.", provider: "folk", live: true, auth: "apikey", apiKeyHint: "Create an API key in folk under Settings → Workspace → API." },
   { name: "HubSpot", category: "crm", blurb: "Sync client companies, deals, and contacts effortlessly.", provider: "hubspot", live: true, auth: "apikey" },
   { name: "monday.com", category: "crm", blurb: "Read the candidate and client boards your agency already runs.", provider: "monday", live: true, auth: "apikey", apiKeyHint: "Copy your personal API token from your monday.com profile picture → Developers → API token." },
   { name: "Notion", category: "crm", blurb: "Read the databases and pages your team already runs recruiting on.", provider: "notion", live: true, auth: "oauth" },
@@ -228,6 +229,7 @@ export const CONNECTOR_DOMAINS: Record<string, string> = {
   fathom: "fathom.video",
   findymail: "findymail.com",
   fireflies: "fireflies.ai",
+  folk: "folk.app",
   fullenrich: "fullenrich.com",
   github: "github.com",
   gong: "gong.io",

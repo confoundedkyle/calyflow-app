@@ -25,6 +25,7 @@ export interface ConnectorTokens {
   fathomToken: string | null;
   findymailToken: string | null;
   firefliesToken: string | null;
+  folkToken: string | null;
   fullenrichToken: string | null;
   githubToken: string | null;
   gmailToken: string | null;
@@ -93,6 +94,7 @@ const SPECS: TokenSpec[] = [
   { field: "fathomToken", prefix: "fathom_", provider: "fathom" },
   { field: "findymailToken", prefix: "findymail_", provider: "findymail" },
   { field: "firefliesToken", prefix: "fireflies_", provider: "fireflies" },
+  { field: "folkToken", prefix: "folk_", provider: "folk" },
   { field: "fullenrichToken", prefix: "fullenrich_", provider: "fullenrich" },
   { field: "githubToken", prefix: "github_", provider: "github" },
   { field: "gmailToken", prefix: "gmail_", provider: "gmail" },

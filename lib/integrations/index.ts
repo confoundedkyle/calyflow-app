@@ -19,6 +19,7 @@ import { dropcontactAdapter } from "./dropcontact";
 import { fathomAdapter } from "./fathom";
 import { findymailAdapter } from "./findymail";
 import { firefliesAdapter } from "./fireflies";
+import { folkAdapter } from "./folk";
 import { fullenrichAdapter } from "./fullenrich";
 import { githubAdapter } from "./github";
 import { gmailAdapter } from "./gmail";
@@ -83,6 +84,7 @@ const ADAPTERS: Record<string, ConnectorAdapter> = {
   fathom: fathomAdapter,
   findymail: findymailAdapter,
   fireflies: firefliesAdapter,
+  folk: folkAdapter,
   fullenrich: fullenrichAdapter,
   github: githubAdapter,
   gmail: gmailAdapter,

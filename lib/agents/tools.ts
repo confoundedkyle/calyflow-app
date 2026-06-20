@@ -20,6 +20,7 @@ import { dropcontactAdapter } from "../integrations/dropcontact";
 import { fathomAdapter } from "../integrations/fathom";
 import { findymailAdapter } from "../integrations/findymail";
 import { firefliesAdapter } from "../integrations/fireflies";
+import { folkAdapter } from "../integrations/folk";
 import { fullenrichAdapter } from "../integrations/fullenrich";
 import { githubAdapter } from "../integrations/github";
 import { firecrawlScrape, firecrawlSearch } from "../integrations/firecrawl";
@@ -513,6 +514,32 @@ function buildAll(ctx: ToolContext): ToolSet {
       execute: async (args) => {
         if (!ctx.firefliesToken) return { error: notConnected("Fireflies.ai") };
         return firefliesAdapter.getMeeting(ctx.firefliesToken, args);
+      },
+    }),
+
+    folk_list_people: tool({
+      description:
+        "List people (contacts) in the connected folk CRM as a Markdown table (name, email, phone, title, company, person id). Page with the cursor surfaced under the table.",
+      inputSchema: z.object({
+        cursor: z.string().optional().describe("Pagination cursor from a previous page."),
+        limit: z.number().int().positive().optional().describe("Max 100."),
+      }),
+      execute: async (args) => {
+        if (!ctx.folkToken) return { error: notConnected("folk") };
+        return folkAdapter.listPeople(ctx.folkToken, args);
+      },
+    }),
+
+    folk_list_companies: tool({
+      description:
+        "List companies (client accounts) in the connected folk CRM as a Markdown table (company, email, website, company id). Page with the cursor surfaced under the table.",
+      inputSchema: z.object({
+        cursor: z.string().optional().describe("Pagination cursor from a previous page."),
+        limit: z.number().int().positive().optional().describe("Max 100."),
+      }),
+      execute: async (args) => {
+        if (!ctx.folkToken) return { error: notConnected("folk") };
+        return folkAdapter.listCompanies(ctx.folkToken, args);
       },
     }),
 
@@ -2784,6 +2811,8 @@ export const ALL_TOOL_NAMES = [
   "findymail_verify_email",
   "fireflies_list_meetings",
   "fireflies_get_meeting",
+  "folk_list_people",
+  "folk_list_companies",
   "fullenrich_enrich",
   "fullenrich_get_result",
   "gmail_send_email",

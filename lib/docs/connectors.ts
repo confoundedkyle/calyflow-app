@@ -245,6 +245,29 @@ export const DOC_CONNECTORS: Record<string, ConnectorDocContent> = {
       { label: "Close API docs", url: "https://developer.close.com/" },
     ],
   },
+  folk: {
+    capabilities: [
+      "List people (contacts) with their email, phone, title, and company",
+      "List client companies in your folk workspace",
+    ],
+    useCases: [
+      "Brief yourself on a client contact before a call using their folk record",
+      "Pull your network of people and companies into research and outreach",
+      "Find the right contact at a target account for business development",
+    ],
+    whatYouNeed: ["A folk account with permission to create an API key"],
+    steps: [
+      "In folk, go to Settings → Workspace → API.",
+      "Create an API key and copy it.",
+      "In Calyflow, go to Settings → Connectors → folk and paste the key.",
+    ],
+    configuration: [
+      "Read-only: Calyflow reads the people and companies a task needs and never changes your folk data.",
+    ],
+    links: [
+      { label: "folk API docs", url: "https://developer.folk.app/" },
+    ],
+  },
   hubspot: {
     capabilities: [
       "Search client companies, contacts, and deals",
