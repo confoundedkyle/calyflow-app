@@ -63,6 +63,7 @@ export interface ConnectorTokens {
   teamtailorToken: string | null;
   tldvToken: string | null;
   vincereToken: string | null;
+  wizaToken: string | null;
   woodpeckerToken: string | null;
   workableToken: string | null;
   zohoCrmToken: string | null;
@@ -133,6 +134,7 @@ const SPECS: TokenSpec[] = [
   { field: "teamtailorToken", prefix: "teamtailor_", provider: "teamtailor" },
   { field: "tldvToken", prefix: "tldv_", provider: "tldv" },
   { field: "vincereToken", prefix: "vincere_", provider: "vincere" },
+  { field: "wizaToken", prefix: "wiza_", provider: "wiza" },
   { field: "woodpeckerToken", prefix: "woodpecker_", provider: "woodpecker" },
   { field: "workableToken", prefix: "workable_", provider: "workable" },
   { field: "zohoCrmToken", prefix: "zohocrm_", provider: "zoho-crm" },

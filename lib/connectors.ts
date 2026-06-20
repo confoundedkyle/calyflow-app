@@ -116,6 +116,7 @@ export const CONNECTORS: Connector[] = [
   { name: "Smartlead", category: "tool", blurb: "Track cold-email campaigns, leads, and reply analytics.", provider: "smartlead", live: true, auth: "apikey" },
   { name: "Snov.io", category: "tool", blurb: "Find and verify work emails for outreach-ready lists.", provider: "snov", live: true, auth: "apikey", apiKeyPlaceholder: "client-id:client-secret", apiKeyHint: "Both are shown in Snov.io under your account settings → API." },
   { name: "tl;dv", category: "tool", blurb: "Read AI notes and transcripts from your recorded meetings.", provider: "tldv", live: true, auth: "apikey", apiKeyHint: "Create the key under personal settings → API Keys; API access requires the tl;dv Business plan." },
+  { name: "Wiza", category: "tool", blurb: "Reveal verified emails and mobile numbers from LinkedIn profiles.", provider: "wiza", live: true, auth: "apikey", apiKeyHint: "Create an API key in Wiza under Settings → API." },
   { name: "Woodpecker", category: "tool", blurb: "Track cold-email campaigns and prospect replies, EU-style.", provider: "woodpecker", live: true, auth: "apikey", apiKeyHint: "Create the key in Woodpecker under Add-ons → API & Integrations → API keys." },
 ];
 
@@ -246,6 +247,7 @@ export const CONNECTOR_DOMAINS: Record<string, string> = {
   smartlead: "smartlead.ai",
   snov: "snov.io",
   tldv: "tldv.io",
+  wiza: "wiza.co",
   woodpecker: "woodpecker.co",
 };
 

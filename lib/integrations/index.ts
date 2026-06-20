@@ -57,6 +57,7 @@ import { snovAdapter } from "./snov";
 import { teamtailorAdapter } from "./teamtailor";
 import { tldvAdapter } from "./tldv";
 import { vincereAdapter } from "./vincere";
+import { wizaAdapter } from "./wiza";
 import { woodpeckerAdapter } from "./woodpecker";
 import { workableAdapter } from "./workable";
 import { zohoCrmAdapter } from "./zoho-crm";
@@ -123,6 +124,7 @@ const ADAPTERS: Record<string, ConnectorAdapter> = {
   teamtailor: teamtailorAdapter,
   tldv: tldvAdapter,
   vincere: vincereAdapter,
+  wiza: wizaAdapter,
   woodpecker: woodpeckerAdapter,
   workable: workableAdapter,
   "zoho-crm": zohoCrmAdapter,

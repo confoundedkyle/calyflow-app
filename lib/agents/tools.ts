@@ -59,6 +59,7 @@ import { snovAdapter } from "../integrations/snov";
 import { teamtailorAdapter } from "../integrations/teamtailor";
 import { tldvAdapter } from "../integrations/tldv";
 import { vincereAdapter } from "../integrations/vincere";
+import { wizaAdapter } from "../integrations/wiza";
 import { woodpeckerAdapter } from "../integrations/woodpecker";
 import { workableAdapter } from "../integrations/workable";
 import { zohoCrmAdapter } from "../integrations/zoho-crm";
@@ -2610,6 +2611,34 @@ function buildAll(ctx: ToolContext): ToolSet {
       },
     }),
 
+    wiza_reveal: tool({
+      description:
+        "Reveal a contact's verified email and mobile number via Wiza. Provide a LinkedIn profile URL, OR an email, OR a fullName with a company or domain. Asynchronous: this returns a reveal id; read the result with wiza_get_result after a few seconds.",
+      inputSchema: z.object({
+        linkedinUrl: z.string().optional().describe("LinkedIn profile URL (best input)."),
+        email: z.string().optional().describe("A known email to enrich."),
+        fullName: z.string().optional(),
+        company: z.string().optional().describe("Company name."),
+        domain: z.string().optional().describe("Company website or domain."),
+      }),
+      execute: async (args) => {
+        if (!ctx.wizaToken) return { error: notConnected("Wiza") };
+        return wizaAdapter.reveal(ctx.wizaToken, args);
+      },
+    }),
+
+    wiza_get_result: tool({
+      description:
+        "Read the result of a Wiza reveal using the reveal id returned by wiza_reveal. May report the reveal is still running — if so, call again after working on something else for a moment.",
+      inputSchema: z.object({
+        revealId: z.string().describe("Reveal id from wiza_reveal."),
+      }),
+      execute: async (args) => {
+        if (!ctx.wizaToken) return { error: notConnected("Wiza") };
+        return wizaAdapter.getResult(ctx.wizaToken, args);
+      },
+    }),
+
     woodpecker_list_campaigns: tool({
       description:
         "List campaigns in the connected Woodpecker account (name, status, created, folder, daily limit, campaign id). Optionally filter by comma-separated statuses: RUNNING, DRAFT, EDITED, PAUSED, STOPPED, COMPLETED.",
@@ -2927,6 +2956,8 @@ export const ALL_TOOL_NAMES = [
   "tldv_list_meetings",
   "tldv_get_notes",
   "tldv_get_transcript",
+  "wiza_reveal",
+  "wiza_get_result",
   "woodpecker_list_campaigns",
   "woodpecker_list_prospects",
   "woodpecker_campaign_stats",

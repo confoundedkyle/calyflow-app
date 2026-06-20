@@ -549,6 +549,29 @@ export const DOC_CONNECTORS: Record<string, ConnectorDocContent> = {
       { label: "Avoma API docs", url: "https://dev.avoma.com/" },
     ],
   },
+  wiza: {
+    capabilities: [
+      "Reveal a verified work email and mobile number from a LinkedIn profile",
+      "Enrich a contact from an email or a name + company",
+    ],
+    useCases: [
+      "Turn a sourced LinkedIn profile into a contactable email and phone",
+      "Get a direct mobile for a candidate before a calling campaign",
+      "Enrich a thin lead (name + company) into a reachable contact for BD",
+    ],
+    whatYouNeed: ["A Wiza account with API access"],
+    steps: [
+      "In Wiza, open Settings → API and create an API key.",
+      "In Calyflow, go to Settings → Connectors → Wiza and paste it.",
+    ],
+    configuration: [
+      "Reveals are asynchronous: a request is submitted, then the result is fetched a few seconds later — agents handle this automatically.",
+      "Lookups draw on your Wiza email and phone credits; credits are charged only for found results.",
+    ],
+    links: [
+      { label: "Wiza API docs", url: "https://docs.wiza.co/" },
+    ],
+  },
   gong: {
     useCases: [
       "Pull the summary of an intake call to brief an agent on the role",
