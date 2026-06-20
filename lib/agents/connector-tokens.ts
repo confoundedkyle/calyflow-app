@@ -32,6 +32,7 @@ export interface ConnectorTokens {
   gmailToken: string | null;
   gongToken: string | null;
   googleSheetsToken: string | null;
+  grainToken: string | null;
   greenhouseToken: string | null;
   hubspotToken: string | null;
   hunterToken: string | null;
@@ -104,6 +105,7 @@ const SPECS: TokenSpec[] = [
   { field: "gmailToken", prefix: "gmail_", provider: "gmail" },
   { field: "gongToken", prefix: "gong_", provider: "gong" },
   { field: "googleSheetsToken", prefix: "googlesheets_", provider: "google-sheets" },
+  { field: "grainToken", prefix: "grain_", provider: "grain" },
   { field: "greenhouseToken", prefix: "greenhouse_", provider: "greenhouse" },
   { field: "hubspotToken", prefix: "hubspot_", provider: "hubspot" },
   { field: "hunterToken", prefix: "hunter_", provider: "hunter" },

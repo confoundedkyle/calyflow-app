@@ -26,6 +26,7 @@ import { githubAdapter } from "./github";
 import { gmailAdapter } from "./gmail";
 import { gongAdapter } from "./gong";
 import { googleSheetsAdapter } from "./google-sheets";
+import { grainAdapter } from "./grain";
 import { greenhouseAdapter } from "./greenhouse";
 import { hubspotAdapter } from "./hubspot";
 import { hunterAdapter } from "./hunter";
@@ -94,6 +95,7 @@ const ADAPTERS: Record<string, ConnectorAdapter> = {
   gmail: gmailAdapter,
   gong: gongAdapter,
   "google-sheets": googleSheetsAdapter,
+  grain: grainAdapter,
   greenhouse: greenhouseAdapter,
   hubspot: hubspotAdapter,
   hunter: hunterAdapter,

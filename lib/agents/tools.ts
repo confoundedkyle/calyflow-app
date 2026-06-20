@@ -28,6 +28,7 @@ import { firecrawlScrape, firecrawlSearch } from "../integrations/firecrawl";
 import { gmailAdapter } from "../integrations/gmail";
 import { gongAdapter } from "../integrations/gong";
 import { googleSheetsAdapter } from "../integrations/google-sheets";
+import { grainAdapter } from "../integrations/grain";
 import { greenhouseAdapter } from "../integrations/greenhouse";
 import { hubspotAdapter } from "../integrations/hubspot";
 import { hunterAdapter } from "../integrations/hunter";
@@ -728,6 +729,30 @@ function buildAll(ctx: ToolContext): ToolSet {
       execute: async ({ callId }) => {
         if (!ctx.gongToken) return { error: notConnected("Gong") };
         return gongAdapter.getTranscript(ctx.gongToken, callId);
+      },
+    }),
+
+    grain_list_recordings: tool({
+      description:
+        "List recordings in the connected Grain account as a Markdown table (title, date, recording id, link). Page with the cursor surfaced under the table.",
+      inputSchema: z.object({
+        cursor: z.string().optional().describe("Pagination cursor from a previous page."),
+      }),
+      execute: async (args) => {
+        if (!ctx.grainToken) return { error: notConnected("Grain") };
+        return grainAdapter.listRecordings(ctx.grainToken, args);
+      },
+    }),
+
+    grain_get_transcript: tool({
+      description:
+        "Read the speaker-attributed transcript of one Grain recording, truncated if very long. Get the recordingId from grain_list_recordings.",
+      inputSchema: z.object({
+        recordingId: z.string().describe("Recording id from grain_list_recordings."),
+      }),
+      execute: async (args) => {
+        if (!ctx.grainToken) return { error: notConnected("Grain") };
+        return grainAdapter.getTranscript(ctx.grainToken, args);
       },
     }),
 
@@ -2907,6 +2932,8 @@ export const ALL_TOOL_NAMES = [
   "gong_list_calls",
   "gong_get_summary",
   "gong_get_transcript",
+  "grain_list_recordings",
+  "grain_get_transcript",
   "googlesheets_list_spreadsheets",
   "googlesheets_list_sheets",
   "googlesheets_read_range",

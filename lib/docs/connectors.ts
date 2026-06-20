@@ -597,6 +597,28 @@ export const DOC_CONNECTORS: Record<string, ConnectorDocContent> = {
       { label: "Zoom Server-to-Server OAuth", url: "https://developers.zoom.us/docs/internal-apps/s2s-oauth/" },
     ],
   },
+  grain: {
+    capabilities: [
+      "List your Grain recordings with their dates and links",
+      "Read the speaker-attributed transcript of a recording",
+    ],
+    useCases: [
+      "Pull the transcript of a candidate interview to write up a scorecard",
+      "Capture exactly what a hiring manager asked for from an intake call",
+      "Review a screening call without re-watching the recording",
+    ],
+    whatYouNeed: ["A Grain account with API access"],
+    steps: [
+      "In Grain, go to Settings → Integrations → Grain API and create a Personal Access Token.",
+      "In Calyflow, go to Settings → Connectors → Grain and paste it.",
+    ],
+    configuration: [
+      "Read-only: Calyflow reads your recordings and transcripts and never changes anything in Grain.",
+    ],
+    links: [
+      { label: "Grain API docs", url: "https://developers.grain.com/" },
+    ],
+  },
   gong: {
     useCases: [
       "Pull the summary of an intake call to brief an agent on the role",
