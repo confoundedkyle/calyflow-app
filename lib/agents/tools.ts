@@ -18,6 +18,7 @@ import { coresignalAdapter } from "../integrations/coresignal";
 import { crelateAdapter } from "../integrations/crelate";
 import { dropcontactAdapter } from "../integrations/dropcontact";
 import { fathomAdapter } from "../integrations/fathom";
+import { findymailAdapter } from "../integrations/findymail";
 import { firefliesAdapter } from "../integrations/fireflies";
 import { fullenrichAdapter } from "../integrations/fullenrich";
 import { githubAdapter } from "../integrations/github";
@@ -588,6 +589,43 @@ function buildAll(ctx: ToolContext): ToolSet {
       execute: async ({ recordingId }) => {
         if (!ctx.fathomToken) return { error: notConnected("Fathom") };
         return fathomAdapter.getTranscript(ctx.fathomToken, recordingId);
+      },
+    }),
+
+    findymail_find_email: tool({
+      description:
+        "Find a verified work email via Findymail from a person's full name and company domain. Costs a finder credit. Returns the email plus name/domain, or reports no match.",
+      inputSchema: z.object({
+        name: z.string().describe("Person's full name."),
+        domain: z.string().describe("Company domain, e.g. acme.com."),
+      }),
+      execute: async (args) => {
+        if (!ctx.findymailToken) return { error: notConnected("Findymail") };
+        return findymailAdapter.findEmail(ctx.findymailToken, args);
+      },
+    }),
+
+    findymail_find_phone: tool({
+      description:
+        "Find a direct mobile number via Findymail from a LinkedIn profile URL (excludes EU numbers for GDPR). Costs credits only if found.",
+      inputSchema: z.object({
+        linkedinUrl: z.string().describe("LinkedIn profile URL."),
+      }),
+      execute: async (args) => {
+        if (!ctx.findymailToken) return { error: notConnected("Findymail") };
+        return findymailAdapter.findPhone(ctx.findymailToken, args);
+      },
+    }),
+
+    findymail_verify_email: tool({
+      description:
+        "Verify one email's deliverability via Findymail (deliverable vs risky, plus the email provider). Use before adding an address to an outreach run.",
+      inputSchema: z.object({
+        email: z.string().describe("The email address to verify."),
+      }),
+      execute: async (args) => {
+        if (!ctx.findymailToken) return { error: notConnected("Findymail") };
+        return findymailAdapter.verifyEmail(ctx.findymailToken, args);
       },
     }),
 
@@ -2741,6 +2779,9 @@ export const ALL_TOOL_NAMES = [
   "fathom_list_meetings",
   "fathom_get_summary",
   "fathom_get_transcript",
+  "findymail_find_email",
+  "findymail_find_phone",
+  "findymail_verify_email",
   "fireflies_list_meetings",
   "fireflies_get_meeting",
   "fullenrich_enrich",

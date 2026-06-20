@@ -482,6 +482,28 @@ export const DOC_CONNECTORS: Record<string, ConnectorDocContent> = {
       { label: "FullEnrich API docs", url: "https://docs.fullenrich.com/" },
     ],
   },
+  findymail: {
+    capabilities: [
+      "Find a verified work email from a name and company domain",
+      "Find a direct mobile from a LinkedIn URL, and verify deliverability",
+    ],
+    useCases: [
+      "Find the likely work email for a sourced candidate, already verified",
+      "Get a direct mobile number for a candidate from their LinkedIn profile",
+      "Verify a list of emails before a campaign to protect deliverability",
+    ],
+    whatYouNeed: ["A Findymail account with API access"],
+    steps: [
+      "In Findymail, open app.findymail.com → API and copy your API key.",
+      "In Calyflow, go to Settings → Connectors → Findymail and paste it.",
+    ],
+    configuration: [
+      "Lookups are synchronous and draw on your Findymail finder and verifier credits; phone search excludes EU numbers for GDPR.",
+    ],
+    links: [
+      { label: "Findymail API docs", url: "https://www.findymail.com/api/" },
+    ],
+  },
   gong: {
     useCases: [
       "Pull the summary of an intake call to brief an agent on the role",

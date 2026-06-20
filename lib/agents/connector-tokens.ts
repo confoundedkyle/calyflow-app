@@ -23,6 +23,7 @@ export interface ConnectorTokens {
   crelateToken: string | null;
   dropcontactToken: string | null;
   fathomToken: string | null;
+  findymailToken: string | null;
   firefliesToken: string | null;
   fullenrichToken: string | null;
   githubToken: string | null;
@@ -90,6 +91,7 @@ const SPECS: TokenSpec[] = [
   { field: "crelateToken", prefix: "crelate_", provider: "crelate" },
   { field: "dropcontactToken", prefix: "dropcontact_", provider: "dropcontact" },
   { field: "fathomToken", prefix: "fathom_", provider: "fathom" },
+  { field: "findymailToken", prefix: "findymail_", provider: "findymail" },
   { field: "firefliesToken", prefix: "fireflies_", provider: "fireflies" },
   { field: "fullenrichToken", prefix: "fullenrich_", provider: "fullenrich" },
   { field: "githubToken", prefix: "github_", provider: "github" },

@@ -17,6 +17,7 @@ import { coresignalAdapter } from "./coresignal";
 import { crelateAdapter } from "./crelate";
 import { dropcontactAdapter } from "./dropcontact";
 import { fathomAdapter } from "./fathom";
+import { findymailAdapter } from "./findymail";
 import { firefliesAdapter } from "./fireflies";
 import { fullenrichAdapter } from "./fullenrich";
 import { githubAdapter } from "./github";
@@ -80,6 +81,7 @@ const ADAPTERS: Record<string, ConnectorAdapter> = {
   crelate: crelateAdapter,
   dropcontact: dropcontactAdapter,
   fathom: fathomAdapter,
+  findymail: findymailAdapter,
   fireflies: firefliesAdapter,
   fullenrich: fullenrichAdapter,
   github: githubAdapter,
