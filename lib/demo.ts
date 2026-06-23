@@ -85,6 +85,83 @@ function readDemoFile(file: string): string {
   return readFileSync(join(process.cwd(), "data", "demo", file), "utf8");
 }
 
+// --- Demo Automation Hub --------------------------------------------------
+// An agency-level set of configured automations so the Automation Hub shows a
+// realistic library on first visit. The bound connectors are NOT connected in a
+// fresh workspace, so the Hub renders every row as inactive (red) with an empty
+// last run — a clear "connect your tools to activate these" state. Provisioned
+// idempotently per workspace: skipped once the workspace has any automation of
+// its own, so it never duplicates and never overwrites real config.
+
+interface DemoAutomation {
+  slug: string;
+  /** Pre-filled connector bindings (shown as the "Greenhouse → Apollo"
+   *  subtitle). They stay inactive until the user actually connects them. */
+  bindings: Record<string, string>;
+}
+
+const DEMO_AUTOMATIONS: DemoAutomation[] = [
+  { slug: "ats-enrichment", bindings: { ats: "vincere", tool: "coresignal" } },
+  { slug: "crm-enrichment", bindings: { crm: "hubspot", tool: "coresignal" } },
+  { slug: "daily-ats-reporting", bindings: { ats: "vincere", comms: "slack" } },
+  { slug: "daily-crm-reporting", bindings: { crm: "hubspot", comms: "slack" } },
+  { slug: "existing-client-research", bindings: { ats: "vincere", tool: "coresignal", data: "google-sheets" } },
+  { slug: "new-client-research", bindings: { crm: "hubspot", tool: "coresignal", data: "google-sheets" } },
+];
+
+/**
+ * Idempotently provision the demo Automation Hub for a workspace. No-op once the
+ * workspace has any automation row (so real config is never touched and the demo
+ * isn't re-added after the user archives it). Safe to call on every Hub load.
+ *
+ * No runs are seeded: the bound connectors aren't connected, so the automations
+ * can't have run — the Hub surfaces them as inactive (red) until the user
+ * connects the tools.
+ */
+export async function ensureDemoAutomations(
+  workspaceId: string,
+  userId: string | null,
+): Promise<void> {
+  const { count } = await db()
+    .from("workspace_automations")
+    .select("id", { count: "exact", head: true })
+    .eq("workspace_id", workspaceId);
+  if (count && count > 0) return;
+
+  const { data: libs } = await db()
+    .from("library_automations")
+    .select("id, slug, name, instructions, allowed_tools, model, max_steps, default_schedule, version");
+  const bySlug = new Map((libs ?? []).map((l) => [l.slug as string, l]));
+
+  for (const demo of DEMO_AUTOMATIONS) {
+    const lib = bySlug.get(demo.slug);
+    if (!lib) continue; // library not seeded yet — skip silently
+    const schedule =
+      (lib.default_schedule as
+        | { kind: "daily" | "weekly" | "hourly"; time?: string }
+        | null) ?? null;
+    await db()
+      .from("workspace_automations")
+      .insert({
+        workspace_id: workspaceId,
+        library_automation_id: lib.id,
+        name: lib.name,
+        instructions: lib.instructions,
+        allowed_tools: lib.allowed_tools,
+        model: lib.model,
+        max_steps: lib.max_steps,
+        imported_version: lib.version,
+        connector_bindings: demo.bindings,
+        schedule,
+        enabled: true,
+        status: "healthy",
+        last_run_at: null,
+        next_run_at: null,
+        created_by: userId,
+      });
+  }
+}
+
 export interface DemoContext {
   clientId: string;
   projectId: string;

@@ -150,6 +150,33 @@ export function providersFromTools(allowedTools: string[]): string[] {
   return out;
 }
 
+/**
+ * Resolve an agent/automation's allowed_tools against a set of connector
+ * bindings: drop the `connector:<category>` placeholders and, for each one, add
+ * the bound provider's concrete tools (every tool name that starts with the
+ * provider's prefix). Pass `allToolNames` (lib/agents/tools.ts ALL_TOOL_NAMES)
+ * so this module stays free of a server-only tools import.
+ *
+ * Shared by the interactive run route and the automation cron so both expand
+ * placeholders identically.
+ */
+export function expandConnectorPlaceholders(
+  baseAllowed: string[],
+  bindings: Record<string, string>,
+  allToolNames: readonly string[],
+): string[] {
+  const expanded = baseAllowed.filter(
+    (t) => !t.startsWith(CONNECTOR_REQUIREMENT_PREFIX),
+  );
+  for (const category of requiredConnectorCategories(baseAllowed)) {
+    const provider = bindings[category];
+    if (!provider) continue; // unbound category — its tools are simply absent
+    const prefix = providerToolPrefix(provider);
+    expanded.push(...allToolNames.filter((t) => t.startsWith(prefix)));
+  }
+  return expanded;
+}
+
 /** Whether a connector belongs to a category — its primary one or an extra. */
 export function connectorInCategory(
   c: Connector,
