@@ -3,64 +3,100 @@ import { tool, type ToolSet } from "ai";
 import { z } from "zod";
 import { db } from "../db";
 import { listDocuments, getDocument } from "../queries";
+import { adzunaAdapter } from "../integrations/adzuna";
+import { affinityAdapter } from "../integrations/affinity";
+import { aircallAdapter } from "../integrations/aircall";
 import { airtableAdapter } from "../integrations/airtable";
 import { apolloAdapter } from "../integrations/apollo";
 import { ashbyAdapter } from "../integrations/ashby";
 import { attioAdapter } from "../integrations/attio";
+import { avomaAdapter } from "../integrations/avoma";
 import { bamboohrAdapter } from "../integrations/bamboohr";
+import { bouncerAdapter } from "../integrations/bouncer";
 import { breezyhrAdapter } from "../integrations/breezyhr";
 import { brightdataAdapter } from "../integrations/brightdata";
 import { bullhornAdapter } from "../integrations/bullhorn";
+import { calcomAdapter } from "../integrations/calcom";
+import { calendlyAdapter } from "../integrations/calendly";
+import { capsuleAdapter } from "../integrations/capsule";
 import { catsAdapter } from "../integrations/cats";
 import { closeAdapter } from "../integrations/close";
 import { contactoutAdapter } from "../integrations/contactout";
+import { copperAdapter } from "../integrations/copper";
 import { coresignalAdapter } from "../integrations/coresignal";
 import { crelateAdapter } from "../integrations/crelate";
+import { discordAdapter } from "../integrations/discord";
 import { dropcontactAdapter } from "../integrations/dropcontact";
+import { emailableAdapter } from "../integrations/emailable";
 import { fathomAdapter } from "../integrations/fathom";
 import { findymailAdapter } from "../integrations/findymail";
 import { firefliesAdapter } from "../integrations/fireflies";
+import { folkAdapter } from "../integrations/folk";
 import { fullenrichAdapter } from "../integrations/fullenrich";
 import { githubAdapter } from "../integrations/github";
 import { firecrawlScrape, firecrawlSearch } from "../integrations/firecrawl";
 import { gmailAdapter } from "../integrations/gmail";
 import { gongAdapter } from "../integrations/gong";
 import { googleSheetsAdapter } from "../integrations/google-sheets";
+import { grainAdapter } from "../integrations/grain";
 import { greenhouseAdapter } from "../integrations/greenhouse";
 import { hubspotAdapter } from "../integrations/hubspot";
 import { hunterAdapter } from "../integrations/hunter";
+import { insightlyAdapter } from "../integrations/insightly";
 import { instantlyAdapter } from "../integrations/instantly";
 import { jazzhrAdapter } from "../integrations/jazzhr";
 import { jobadderAdapter } from "../integrations/jobadder";
+import { klentyAdapter } from "../integrations/klenty";
+import { leadmagicAdapter } from "../integrations/leadmagic";
 import { lemlistAdapter } from "../integrations/lemlist";
 import { leverAdapter } from "../integrations/lever";
 import { loxoAdapter } from "../integrations/loxo";
 import { lushaAdapter } from "../integrations/lusha";
+import { mailshakeAdapter } from "../integrations/mailshake";
 import { manatalAdapter } from "../integrations/manatal";
+import { messagebirdAdapter } from "../integrations/messagebird";
 import { microsoftExcelAdapter } from "../integrations/microsoft-excel";
 import { microsoftOutlookAdapter } from "../integrations/microsoft-outlook";
+import { millionverifierAdapter } from "../integrations/millionverifier";
 import { mondayAdapter } from "../integrations/monday";
+import { neverbounceAdapter } from "../integrations/neverbounce";
 import { notionAdapter } from "../integrations/notion";
+import { nymeriaAdapter } from "../integrations/nymeria";
 import { peopledatalabsAdapter } from "../integrations/peopledatalabs";
 import { pinpointAdapter } from "../integrations/pinpoint";
 import { pipedriveAdapter } from "../integrations/pipedrive";
+import { prospeoAdapter } from "../integrations/prospeo";
+import { recruitcrmAdapter } from "../integrations/recruitcrm";
 import { recruiteeAdapter } from "../integrations/recruitee";
 import { recruiterflowAdapter } from "../integrations/recruiterflow";
 import { recruitisAdapter } from "../integrations/recruitis";
 import { replyioAdapter } from "../integrations/replyio";
 import { rocketreachAdapter } from "../integrations/rocketreach";
+import { salesflareAdapter } from "../integrations/salesflare";
+import { serpapiAdapter } from "../integrations/serpapi";
 import { signalhireAdapter } from "../integrations/signalhire";
+import { skrappAdapter } from "../integrations/skrapp";
 import { slackAdapter } from "../integrations/slack";
 import { smartleadAdapter } from "../integrations/smartlead";
 import { smartrecruitersAdapter } from "../integrations/smartrecruiters";
 import { snovAdapter } from "../integrations/snov";
+import { stackexchangeAdapter } from "../integrations/stackexchange";
+import { surfeAdapter } from "../integrations/surfe";
 import { teamtailorAdapter } from "../integrations/teamtailor";
+import { telegramAdapter } from "../integrations/telegram";
 import { tldvAdapter } from "../integrations/tldv";
+import { tombaAdapter } from "../integrations/tomba";
+import { trestleAdapter } from "../integrations/trestle";
+import { twilioAdapter } from "../integrations/twilio";
 import { vincereAdapter } from "../integrations/vincere";
+import { wizaAdapter } from "../integrations/wiza";
 import { woodpeckerAdapter } from "../integrations/woodpecker";
 import { workableAdapter } from "../integrations/workable";
+import { zendeskSellAdapter } from "../integrations/zendesk-sell";
+import { zerobounceAdapter } from "../integrations/zerobounce";
 import { zohoCrmAdapter } from "../integrations/zoho-crm";
 import { zohoRecruitAdapter } from "../integrations/zoho-recruit";
+import { zoomAdapter } from "../integrations/zoom";
 import type { ConnectorTokens } from "./connector-tokens";
 import type { Doc } from "../types";
 
@@ -228,6 +264,48 @@ function buildAll(ctx: ToolContext): ToolSet {
       execute: async ({ query }) => {
         if (!ctx.ashbyToken) return { error: notConnected("Ashby") };
         return ashbyAdapter.searchCandidates(ctx.ashbyToken, { query });
+      },
+    }),
+
+    affinity_search_persons: tool({
+      description:
+        "Search people in the connected Affinity CRM as a Markdown table (name, email, person id). Pass query to search by name or email; page with pageToken.",
+      inputSchema: z.object({
+        query: z.string().optional().describe("Search by name or email."),
+        pageToken: z.string().optional().describe("Pagination token from a previous page."),
+        limit: z.number().int().positive().optional().describe("Max 100."),
+      }),
+      execute: async (args) => {
+        if (!ctx.affinityToken) return { error: notConnected("Affinity") };
+        return affinityAdapter.searchPersons(ctx.affinityToken, args);
+      },
+    }),
+
+    affinity_search_organizations: tool({
+      description:
+        "Search companies in the connected Affinity CRM as a Markdown table (organization, domain, organization id). Pass query to search by name or domain; page with pageToken.",
+      inputSchema: z.object({
+        query: z.string().optional().describe("Search by company name or domain."),
+        pageToken: z.string().optional().describe("Pagination token from a previous page."),
+        limit: z.number().int().positive().optional().describe("Max 100."),
+      }),
+      execute: async (args) => {
+        if (!ctx.affinityToken) return { error: notConnected("Affinity") };
+        return affinityAdapter.searchOrganizations(ctx.affinityToken, args);
+      },
+    }),
+
+    affinity_list_opportunities: tool({
+      description:
+        "List deals (opportunities) in the connected Affinity CRM as a Markdown table (opportunity, opportunity id). Pass query to filter by name; page with pageToken.",
+      inputSchema: z.object({
+        query: z.string().optional().describe("Filter by opportunity name."),
+        pageToken: z.string().optional().describe("Pagination token from a previous page."),
+        limit: z.number().int().positive().optional().describe("Max 100."),
+      }),
+      execute: async (args) => {
+        if (!ctx.affinityToken) return { error: notConnected("Affinity") };
+        return affinityAdapter.listOpportunities(ctx.affinityToken, args);
       },
     }),
 
@@ -516,6 +594,32 @@ function buildAll(ctx: ToolContext): ToolSet {
       },
     }),
 
+    folk_list_people: tool({
+      description:
+        "List people (contacts) in the connected folk CRM as a Markdown table (name, email, phone, title, company, person id). Page with the cursor surfaced under the table.",
+      inputSchema: z.object({
+        cursor: z.string().optional().describe("Pagination cursor from a previous page."),
+        limit: z.number().int().positive().optional().describe("Max 100."),
+      }),
+      execute: async (args) => {
+        if (!ctx.folkToken) return { error: notConnected("folk") };
+        return folkAdapter.listPeople(ctx.folkToken, args);
+      },
+    }),
+
+    folk_list_companies: tool({
+      description:
+        "List companies (client accounts) in the connected folk CRM as a Markdown table (company, email, website, company id). Page with the cursor surfaced under the table.",
+      inputSchema: z.object({
+        cursor: z.string().optional().describe("Pagination cursor from a previous page."),
+        limit: z.number().int().positive().optional().describe("Max 100."),
+      }),
+      execute: async (args) => {
+        if (!ctx.folkToken) return { error: notConnected("folk") };
+        return folkAdapter.listCompanies(ctx.folkToken, args);
+      },
+    }),
+
     fullenrich_enrich: tool({
       description:
         "Enrich one contact via FullEnrich's email + mobile-phone waterfall (15+ vendors). Provide firstName + lastName with a company or domain, or a linkedinUrl. Asynchronous: this returns an enrichment id; read the result with fullenrich_get_result after a few seconds.",
@@ -541,6 +645,45 @@ function buildAll(ctx: ToolContext): ToolSet {
       execute: async (args) => {
         if (!ctx.fullenrichToken) return { error: notConnected("FullEnrich") };
         return fullenrichAdapter.getResult(ctx.fullenrichToken, args);
+      },
+    }),
+
+    avoma_list_meetings: tool({
+      description:
+        "List recorded calls in the connected Avoma account as a Markdown table (subject, date, attendees, meeting uuid, link). Defaults to the last 30 days; narrow with fromDate/toDate (YYYY-MM-DD) and page with page.",
+      inputSchema: z.object({
+        fromDate: z.string().optional().describe("Start date YYYY-MM-DD (defaults to 30 days ago)."),
+        toDate: z.string().optional().describe("End date YYYY-MM-DD (defaults to today)."),
+        page: z.number().int().positive().optional(),
+        pageSize: z.number().int().positive().optional().describe("Max 100."),
+      }),
+      execute: async (args) => {
+        if (!ctx.avomaToken) return { error: notConnected("Avoma") };
+        return avomaAdapter.listMeetings(ctx.avomaToken, args);
+      },
+    }),
+
+    avoma_get_transcript: tool({
+      description:
+        "Read the speaker-attributed transcript of one Avoma meeting, truncated if very long. Get the meetingUuid from avoma_list_meetings.",
+      inputSchema: z.object({
+        meetingUuid: z.string().describe("Meeting uuid from avoma_list_meetings."),
+      }),
+      execute: async (args) => {
+        if (!ctx.avomaToken) return { error: notConnected("Avoma") };
+        return avomaAdapter.getTranscript(ctx.avomaToken, args);
+      },
+    }),
+
+    emailable_verify_email: tool({
+      description:
+        "Verify one email's deliverability via Emailable (deliverable / undeliverable / risky / unknown, plus a reason and a typo suggestion). Use before adding an address to an outreach run.",
+      inputSchema: z.object({
+        email: z.string().describe("The email address to verify."),
+      }),
+      execute: async (args) => {
+        if (!ctx.emailableToken) return { error: notConnected("Emailable") };
+        return emailableAdapter.verifyEmail(ctx.emailableToken, args);
       },
     }),
 
@@ -671,6 +814,30 @@ function buildAll(ctx: ToolContext): ToolSet {
       execute: async ({ callId }) => {
         if (!ctx.gongToken) return { error: notConnected("Gong") };
         return gongAdapter.getTranscript(ctx.gongToken, callId);
+      },
+    }),
+
+    grain_list_recordings: tool({
+      description:
+        "List recordings in the connected Grain account as a Markdown table (title, date, recording id, link). Page with the cursor surfaced under the table.",
+      inputSchema: z.object({
+        cursor: z.string().optional().describe("Pagination cursor from a previous page."),
+      }),
+      execute: async (args) => {
+        if (!ctx.grainToken) return { error: notConnected("Grain") };
+        return grainAdapter.listRecordings(ctx.grainToken, args);
+      },
+    }),
+
+    grain_get_transcript: tool({
+      description:
+        "Read the speaker-attributed transcript of one Grain recording, truncated if very long. Get the recordingId from grain_list_recordings.",
+      inputSchema: z.object({
+        recordingId: z.string().describe("Recording id from grain_list_recordings."),
+      }),
+      execute: async (args) => {
+        if (!ctx.grainToken) return { error: notConnected("Grain") };
+        return grainAdapter.getTranscript(ctx.grainToken, args);
       },
     }),
 
@@ -924,6 +1091,37 @@ function buildAll(ctx: ToolContext): ToolSet {
       },
     }),
 
+    adzuna_search_jobs: tool({
+      description:
+        "Search the job market via Adzuna (title, company, location, salary range, posted date, link). Use for live demand and competitor postings. Defaults to the UK (gb); set country (gb, us, au, ca, de, fr, …), and filter with what (keywords), where (location), and salaryMin.",
+      inputSchema: z.object({
+        what: z.string().optional().describe("Keywords, e.g. 'react developer'."),
+        where: z.string().optional().describe("Location, e.g. 'London'."),
+        country: z.string().optional().describe("Country code (default gb)."),
+        salaryMin: z.number().int().positive().optional().describe("Minimum salary filter."),
+        page: z.number().int().positive().optional(),
+        limit: z.number().int().positive().optional().describe("Max 50."),
+      }),
+      execute: async (args) => {
+        if (!ctx.adzunaToken) return { error: notConnected("Adzuna") };
+        return adzunaAdapter.searchJobs(ctx.adzunaToken, args);
+      },
+    }),
+
+    adzuna_salary_histogram: tool({
+      description:
+        "Get the salary distribution for a job title via Adzuna (count of jobs per salary band) — useful for benchmarking a role's pay. Provide what (title); optional country and where.",
+      inputSchema: z.object({
+        what: z.string().describe("Job title, e.g. 'data scientist'."),
+        where: z.string().optional().describe("Location, e.g. 'Manchester'."),
+        country: z.string().optional().describe("Country code (default gb)."),
+      }),
+      execute: async (args) => {
+        if (!ctx.adzunaToken) return { error: notConnected("Adzuna") };
+        return adzunaAdapter.salaryHistogram(ctx.adzunaToken, args);
+      },
+    }),
+
     apollo_search_people: tool({
       description:
         "Search Apollo's B2B database for people at target companies by job title, seniority, company domain/name, and location. Returns name, title, company, location, and email status as a Markdown table. NOTE: email addresses are usually masked in search results — use apollo_enrich_person to reveal a specific person's actual email.",
@@ -999,6 +1197,18 @@ function buildAll(ctx: ToolContext): ToolSet {
       execute: async (args) => {
         if (!ctx.apolloToken) return { error: notConnected("Apollo") };
         return apolloAdapter.searchOrganizations(ctx.apolloToken, args);
+      },
+    }),
+
+    bouncer_verify_email: tool({
+      description:
+        "Verify one email's deliverability via Bouncer (deliverable / undeliverable / risky / unknown, plus a reason). Use before adding an address to an outreach run.",
+      inputSchema: z.object({
+        email: z.string().describe("The email address to verify."),
+      }),
+      execute: async (args) => {
+        if (!ctx.bouncerToken) return { error: notConnected("Bouncer") };
+        return bouncerAdapter.verifyEmail(ctx.bouncerToken, args);
       },
     }),
 
@@ -1187,6 +1397,76 @@ function buildAll(ctx: ToolContext): ToolSet {
       },
     }),
 
+    calcom_list_bookings: tool({
+      description:
+        "List booked meetings in the connected Cal.com account as a Markdown table (event, status, start, attendee, email, booking uid). Filter by status (upcoming, past, cancelled, unconfirmed, recurring); page with the cursor surfaced under the table.",
+      inputSchema: z.object({
+        status: z
+          .enum(["upcoming", "recurring", "past", "cancelled", "unconfirmed"])
+          .optional()
+          .describe("Filter by booking status."),
+        cursor: z.string().optional().describe("Pagination cursor from a previous page."),
+        limit: z.number().int().positive().optional().describe("Max 100."),
+      }),
+      execute: async (args) => {
+        if (!ctx.calcomToken) return { error: notConnected("Cal.com") };
+        return calcomAdapter.listBookings(ctx.calcomToken, args);
+      },
+    }),
+
+    calendly_list_events: tool({
+      description:
+        "List scheduled events (booked meetings) in the connected Calendly account as a Markdown table (event, status, start, end, event uuid). Filter by status (active or canceled) and minStartTime (ISO 8601); get the invitees of one event with calendly_get_invitees.",
+      inputSchema: z.object({
+        status: z.enum(["active", "canceled"]).optional().describe("Filter by event status."),
+        minStartTime: z.string().optional().describe("Only events starting at/after this ISO 8601 time."),
+        count: z.number().int().positive().optional().describe("Max 100."),
+      }),
+      execute: async (args) => {
+        if (!ctx.calendlyToken) return { error: notConnected("Calendly") };
+        return calendlyAdapter.listEvents(ctx.calendlyToken, args);
+      },
+    }),
+
+    calendly_get_invitees: tool({
+      description:
+        "List the invitees (who booked) for one Calendly event as a Markdown table (name, email, status, booked date). Get the eventUuid from calendly_list_events.",
+      inputSchema: z.object({
+        eventUuid: z.string().describe("Event uuid from calendly_list_events."),
+      }),
+      execute: async (args) => {
+        if (!ctx.calendlyToken) return { error: notConnected("Calendly") };
+        return calendlyAdapter.getInvitees(ctx.calendlyToken, args);
+      },
+    }),
+
+    capsule_search_parties: tool({
+      description:
+        "Search people and client companies (parties) in the connected Capsule CRM as a Markdown table (name, type, email, phone, company/title, party id). Pass query for a text search; omit it to browse. Page with page.",
+      inputSchema: z.object({
+        query: z.string().optional().describe("Text search across people and companies."),
+        page: z.number().int().positive().optional(),
+        limit: z.number().int().positive().optional().describe("Max 100."),
+      }),
+      execute: async (args) => {
+        if (!ctx.capsuleToken) return { error: notConnected("Capsule") };
+        return capsuleAdapter.searchParties(ctx.capsuleToken, args);
+      },
+    }),
+
+    capsule_list_opportunities: tool({
+      description:
+        "List deals (opportunities) in the connected Capsule CRM as a Markdown table (opportunity, value, milestone, party, opportunity id). Page with page.",
+      inputSchema: z.object({
+        page: z.number().int().positive().optional(),
+        limit: z.number().int().positive().optional().describe("Max 100."),
+      }),
+      execute: async (args) => {
+        if (!ctx.capsuleToken) return { error: notConnected("Capsule") };
+        return capsuleAdapter.listOpportunities(ctx.capsuleToken, args);
+      },
+    }),
+
     cats_list_jobs: tool({
       description:
         "List jobs in the connected CATS ATS (title, location, created date, job id). Paginate with page. Use to find the role you are sourcing for.",
@@ -1242,6 +1522,48 @@ function buildAll(ctx: ToolContext): ToolSet {
       },
     }),
 
+    copper_search_people: tool({
+      description:
+        "Search people in the connected Copper CRM as a Markdown table (name, email, phone, company, title, person id). Pass name to filter; page with page.",
+      inputSchema: z.object({
+        name: z.string().optional().describe("Filter by person name."),
+        page: z.number().int().positive().optional(),
+        limit: z.number().int().positive().optional().describe("Max 100."),
+      }),
+      execute: async (args) => {
+        if (!ctx.copperToken) return { error: notConnected("Copper") };
+        return copperAdapter.searchPeople(ctx.copperToken, args);
+      },
+    }),
+
+    copper_search_companies: tool({
+      description:
+        "Search companies (client accounts) in the connected Copper CRM as a Markdown table (company, email domain, phone, company id). Pass name to filter; page with page.",
+      inputSchema: z.object({
+        name: z.string().optional().describe("Filter by company name."),
+        page: z.number().int().positive().optional(),
+        limit: z.number().int().positive().optional().describe("Max 100."),
+      }),
+      execute: async (args) => {
+        if (!ctx.copperToken) return { error: notConnected("Copper") };
+        return copperAdapter.searchCompanies(ctx.copperToken, args);
+      },
+    }),
+
+    copper_search_opportunities: tool({
+      description:
+        "Search deals (opportunities) in the connected Copper CRM as a Markdown table (opportunity, status, value, company, opportunity id). Pass name to filter; page with page.",
+      inputSchema: z.object({
+        name: z.string().optional().describe("Filter by opportunity name."),
+        page: z.number().int().positive().optional(),
+        limit: z.number().int().positive().optional().describe("Max 100."),
+      }),
+      execute: async (args) => {
+        if (!ctx.copperToken) return { error: notConnected("Copper") };
+        return copperAdapter.searchOpportunities(ctx.copperToken, args);
+      },
+    }),
+
     crelate_list_jobs: tool({
       description:
         "List jobs in the connected Crelate ATS (name, company, status, openings, job id). Pass name to filter by job name (contains match); paginate with offset.",
@@ -1289,6 +1611,31 @@ function buildAll(ctx: ToolContext): ToolSet {
       execute: async (args) => {
         if (!ctx.crelateToken) return { error: notConnected("Crelate") };
         return crelateAdapter.listContacts(ctx.crelateToken, args);
+      },
+    }),
+
+    discord_list_channels: tool({
+      description:
+        "List the channels of a Discord server (guild) as a Markdown table (channel, type, channel id). Get the channel id here to read its messages.",
+      inputSchema: z.object({
+        guildId: z.string().describe("The Discord server (guild) id."),
+      }),
+      execute: async (args) => {
+        if (!ctx.discordToken) return { error: notConnected("Discord") };
+        return discordAdapter.listChannels(ctx.discordToken, args);
+      },
+    }),
+
+    discord_list_messages: tool({
+      description:
+        "List recent messages in a Discord channel as a Markdown table (author, message, sent). Get the channelId from discord_list_channels.",
+      inputSchema: z.object({
+        channelId: z.string().describe("The Discord channel id."),
+        limit: z.number().int().positive().optional().describe("Max 50."),
+      }),
+      execute: async (args) => {
+        if (!ctx.discordToken) return { error: notConnected("Discord") };
+        return discordAdapter.listMessages(ctx.discordToken, args);
       },
     }),
 
@@ -1657,6 +2004,45 @@ function buildAll(ctx: ToolContext): ToolSet {
       },
     }),
 
+    insightly_list_contacts: tool({
+      description:
+        "List contacts in the connected Insightly CRM as a Markdown table (name, email, phone, company, title, contact id). Page with skip.",
+      inputSchema: z.object({
+        skip: z.number().int().nonnegative().optional().describe("Offset for paging."),
+        limit: z.number().int().positive().optional().describe("Max 100."),
+      }),
+      execute: async (args) => {
+        if (!ctx.insightlyToken) return { error: notConnected("Insightly") };
+        return insightlyAdapter.listContacts(ctx.insightlyToken, args);
+      },
+    }),
+
+    insightly_list_organisations: tool({
+      description:
+        "List organisations (client companies) in the connected Insightly CRM as a Markdown table (company, phone, organisation id). Page with skip.",
+      inputSchema: z.object({
+        skip: z.number().int().nonnegative().optional().describe("Offset for paging."),
+        limit: z.number().int().positive().optional().describe("Max 100."),
+      }),
+      execute: async (args) => {
+        if (!ctx.insightlyToken) return { error: notConnected("Insightly") };
+        return insightlyAdapter.listOrganisations(ctx.insightlyToken, args);
+      },
+    }),
+
+    insightly_list_opportunities: tool({
+      description:
+        "List deals (opportunities) in the connected Insightly CRM as a Markdown table (opportunity, value, state, opportunity id). Page with skip.",
+      inputSchema: z.object({
+        skip: z.number().int().nonnegative().optional().describe("Offset for paging."),
+        limit: z.number().int().positive().optional().describe("Max 100."),
+      }),
+      execute: async (args) => {
+        if (!ctx.insightlyToken) return { error: notConnected("Insightly") };
+        return insightlyAdapter.listOpportunities(ctx.insightlyToken, args);
+      },
+    }),
+
     instantly_list_campaigns: tool({
       description:
         "List cold-email campaigns in the connected Instantly.ai workspace (name, status, campaign id). search filters by name; paginate by passing the startingAfter cursor from the previous page.",
@@ -1692,6 +2078,56 @@ function buildAll(ctx: ToolContext): ToolSet {
       execute: async (args) => {
         if (!ctx.instantlyToken) return { error: notConnected("Instantly.ai") };
         return instantlyAdapter.listLeads(ctx.instantlyToken, args);
+      },
+    }),
+
+    klenty_list_cadences: tool({
+      description:
+        "List the sales cadences (outreach sequences) in the connected Klenty account as a Markdown table (cadence, cadence id).",
+      inputSchema: z.object({}),
+      execute: async () => {
+        if (!ctx.klentyToken) return { error: notConnected("Klenty") };
+        return klentyAdapter.listCadences(ctx.klentyToken);
+      },
+    }),
+
+    klenty_get_prospect: tool({
+      description:
+        "Look up one prospect in the connected Klenty account by email — returns name, title, company, phone, LinkedIn, and prospect status.",
+      inputSchema: z.object({
+        email: z.string().describe("The prospect's email address."),
+      }),
+      execute: async (args) => {
+        if (!ctx.klentyToken) return { error: notConnected("Klenty") };
+        return klentyAdapter.getProspect(ctx.klentyToken, args);
+      },
+    }),
+
+    leadmagic_find_email: tool({
+      description:
+        "Find a verified work email via LeadMagic from a person's name and company (domain or company name). You only pay when a valid email is found. Returns the email plus status, name, and company.",
+      inputSchema: z.object({
+        firstName: z.string().optional(),
+        lastName: z.string().optional(),
+        fullName: z.string().optional().describe("Full name if first/last aren't split."),
+        domain: z.string().optional().describe("Company domain, e.g. acme.com."),
+        companyName: z.string().optional().describe("Company name (if you don't have the domain)."),
+      }),
+      execute: async (args) => {
+        if (!ctx.leadmagicToken) return { error: notConnected("LeadMagic") };
+        return leadmagicAdapter.findEmail(ctx.leadmagicToken, args);
+      },
+    }),
+
+    leadmagic_verify_email: tool({
+      description:
+        "Verify one email's deliverability via LeadMagic (valid / invalid / unknown). Use before adding an address to an outreach run.",
+      inputSchema: z.object({
+        email: z.string().describe("The email address to verify."),
+      }),
+      execute: async (args) => {
+        if (!ctx.leadmagicToken) return { error: notConnected("LeadMagic") };
+        return leadmagicAdapter.verifyEmail(ctx.leadmagicToken, args);
       },
     }),
 
@@ -1985,6 +2421,35 @@ function buildAll(ctx: ToolContext): ToolSet {
       },
     }),
 
+    mailshake_list_campaigns: tool({
+      description:
+        "List cold-email campaigns in the connected Mailshake account as a Markdown table (campaign, created, archived, campaign id). Pass search to filter by name; page with the nextToken surfaced under the table.",
+      inputSchema: z.object({
+        search: z.string().optional().describe("Filter campaigns by name."),
+        nextToken: z.string().optional().describe("Pagination token from a previous page."),
+        limit: z.number().int().positive().optional().describe("Max 100."),
+      }),
+      execute: async (args) => {
+        if (!ctx.mailshakeToken) return { error: notConnected("Mailshake") };
+        return mailshakeAdapter.listCampaigns(ctx.mailshakeToken, args);
+      },
+    }),
+
+    mailshake_list_recipients: tool({
+      description:
+        "List the recipients of one Mailshake campaign as a Markdown table (name, email, added, recipient id). Get the campaignId from mailshake_list_campaigns; page with nextToken.",
+      inputSchema: z.object({
+        campaignId: z.number().int().positive().describe("Campaign id from mailshake_list_campaigns."),
+        search: z.string().optional().describe("Filter recipients by name or email."),
+        nextToken: z.string().optional().describe("Pagination token from a previous page."),
+        limit: z.number().int().positive().optional().describe("Max 100."),
+      }),
+      execute: async (args) => {
+        if (!ctx.mailshakeToken) return { error: notConnected("Mailshake") };
+        return mailshakeAdapter.listRecipients(ctx.mailshakeToken, args);
+      },
+    }),
+
     pinpoint_list_jobs: tool({
       description:
         "List jobs in the connected Pinpoint ATS (title, status, visibility, workplace type, job id). Paginate with page; no server-side filters.",
@@ -2008,6 +2473,43 @@ function buildAll(ctx: ToolContext): ToolSet {
       execute: async (args) => {
         if (!ctx.pinpointToken) return { error: notConnected("Pinpoint") };
         return pinpointAdapter.listCandidates(ctx.pinpointToken, args);
+      },
+    }),
+
+    millionverifier_verify_email: tool({
+      description:
+        "Verify one email's deliverability via MillionVerifier (ok / catch_all / unknown / disposable / invalid, with a quality label). Use before adding an address to an outreach run.",
+      inputSchema: z.object({
+        email: z.string().describe("The email address to verify."),
+      }),
+      execute: async (args) => {
+        if (!ctx.millionverifierToken) return { error: notConnected("MillionVerifier") };
+        return millionverifierAdapter.verifyEmail(ctx.millionverifierToken, args);
+      },
+    }),
+
+    neverbounce_verify_email: tool({
+      description:
+        "Verify one email's deliverability via NeverBounce (valid / invalid / disposable / catchall / unknown). Use before adding an address to an outreach run.",
+      inputSchema: z.object({
+        email: z.string().describe("The email address to verify."),
+      }),
+      execute: async (args) => {
+        if (!ctx.neverbounceToken) return { error: notConnected("NeverBounce") };
+        return neverbounceAdapter.verifyEmail(ctx.neverbounceToken, args);
+      },
+    }),
+
+    nymeria_enrich_person: tool({
+      description:
+        "Enrich a person via Nymeria from a LinkedIn profile URL or an email — returns their work/personal email and mobile phone plus job title and company. Costs a credit when a match is found.",
+      inputSchema: z.object({
+        linkedinUrl: z.string().optional().describe("LinkedIn profile URL."),
+        email: z.string().optional().describe("A known email to enrich from."),
+      }),
+      execute: async (args) => {
+        if (!ctx.nymeriaToken) return { error: notConnected("Nymeria") };
+        return nymeriaAdapter.enrichPerson(ctx.nymeriaToken, args);
       },
     }),
 
@@ -2100,6 +2602,57 @@ function buildAll(ctx: ToolContext): ToolSet {
       execute: async (args) => {
         if (!ctx.pipedriveToken) return { error: notConnected("Pipedrive") };
         return pipedriveAdapter.searchDeals(ctx.pipedriveToken, args);
+      },
+    }),
+
+    prospeo_enrich_person: tool({
+      description:
+        "Find a verified work email via Prospeo from a person's full name + company website, or a LinkedIn URL. Costs a credit only when a verified email is found. Returns the email plus status, name, and company.",
+      inputSchema: z.object({
+        fullName: z.string().optional().describe("Person's full name."),
+        companyWebsite: z.string().optional().describe("Company website or domain (use with fullName)."),
+        linkedinUrl: z.string().optional().describe("LinkedIn profile URL (alternative to name+company)."),
+      }),
+      execute: async (args) => {
+        if (!ctx.prospeoToken) return { error: notConnected("Prospeo") };
+        return prospeoAdapter.enrichPerson(ctx.prospeoToken, args);
+      },
+    }),
+
+    prospeo_find_mobile: tool({
+      description:
+        "Find a direct mobile number via Prospeo from a LinkedIn profile URL. Costs credits only if a number is found.",
+      inputSchema: z.object({
+        linkedinUrl: z.string().describe("LinkedIn profile URL."),
+      }),
+      execute: async (args) => {
+        if (!ctx.prospeoToken) return { error: notConnected("Prospeo") };
+        return prospeoAdapter.findMobile(ctx.prospeoToken, args);
+      },
+    }),
+
+    recruitcrm_search_candidates: tool({
+      description:
+        "Search candidates in the connected Recruit CRM account as a Markdown table (name, email, phone, position, id). Filter with search; page with page.",
+      inputSchema: z.object({
+        search: z.string().optional().describe("Keyword to filter candidates by."),
+        page: z.number().int().positive().optional(),
+      }),
+      execute: async (args) => {
+        if (!ctx.recruitcrmToken) return { error: notConnected("Recruit CRM") };
+        return recruitcrmAdapter.searchCandidates(ctx.recruitcrmToken, args);
+      },
+    }),
+
+    recruitcrm_list_jobs: tool({
+      description:
+        "List jobs in the connected Recruit CRM account as a Markdown table (job, company, status, city, id). Page with page.",
+      inputSchema: z.object({
+        page: z.number().int().positive().optional(),
+      }),
+      execute: async (args) => {
+        if (!ctx.recruitcrmToken) return { error: notConnected("Recruit CRM") };
+        return recruitcrmAdapter.listJobs(ctx.recruitcrmToken, args);
       },
     }),
 
@@ -2243,6 +2796,63 @@ function buildAll(ctx: ToolContext): ToolSet {
       },
     }),
 
+    stackexchange_search_users: tool({
+      description:
+        "Search Stack Exchange users by name (default site stackoverflow), sorted by reputation — for sourcing developers. Returns name, reputation, location, profile link, user id. Set site for other Stack Exchange sites (e.g. serverfault, superuser).",
+      inputSchema: z.object({
+        name: z.string().describe("Name to search for."),
+        site: z.string().optional().describe("Stack Exchange site (default stackoverflow)."),
+        limit: z.number().int().positive().optional().describe("Max 100."),
+      }),
+      execute: async (args) => {
+        if (!ctx.stackexchangeToken) return { error: notConnected("Stack Exchange") };
+        return stackexchangeAdapter.searchUsers(ctx.stackexchangeToken, args);
+      },
+    }),
+
+    stackexchange_top_answerers: tool({
+      description:
+        "List the top answerers for a Stack Overflow skill tag (e.g. python, react, kubernetes) — strong developers to source for that technology. Returns name, reputation, answer count, score, profile link, user id. Set period to month or all_time (default).",
+      inputSchema: z.object({
+        tag: z.string().describe("Skill tag, e.g. python or react."),
+        period: z.enum(["month", "all_time"]).optional().describe("Time window (default all_time)."),
+        site: z.string().optional().describe("Stack Exchange site (default stackoverflow)."),
+        limit: z.number().int().positive().optional().describe("Max 100."),
+      }),
+      execute: async (args) => {
+        if (!ctx.stackexchangeToken) return { error: notConnected("Stack Exchange") };
+        return stackexchangeAdapter.topAnswerers(ctx.stackexchangeToken, args);
+      },
+    }),
+
+    surfe_enrich_person: tool({
+      description:
+        "Enrich a contact's email and mobile number via Surfe. Provide a LinkedIn profile URL, or firstName + lastName with a companyName or companyDomain. Asynchronous: this returns an enrichment id; read the result with surfe_get_result after a few seconds.",
+      inputSchema: z.object({
+        firstName: z.string().optional(),
+        lastName: z.string().optional(),
+        companyName: z.string().optional().describe("Company name."),
+        companyDomain: z.string().optional().describe("Company website or domain."),
+        linkedinUrl: z.string().optional().describe("LinkedIn profile URL."),
+      }),
+      execute: async (args) => {
+        if (!ctx.surfeToken) return { error: notConnected("Surfe") };
+        return surfeAdapter.enrich(ctx.surfeToken, args);
+      },
+    }),
+
+    surfe_get_result: tool({
+      description:
+        "Read the result of a Surfe enrichment using the enrichment id returned by surfe_enrich_person. May report it's still processing — if so, call again after working on something else for a moment.",
+      inputSchema: z.object({
+        enrichmentId: z.string().describe("Enrichment id from surfe_enrich_person."),
+      }),
+      execute: async (args) => {
+        if (!ctx.surfeToken) return { error: notConnected("Surfe") };
+        return surfeAdapter.getResult(ctx.surfeToken, args);
+      },
+    }),
+
     replyio_list_sequences: tool({
       description:
         "List outreach sequences in the connected Reply.io account as a Markdown table (name, status, health, created, sequence id). Filter by status (new, active, paused); page with skip.",
@@ -2371,6 +2981,62 @@ function buildAll(ctx: ToolContext): ToolSet {
       },
     }),
 
+    salesflare_search_contacts: tool({
+      description:
+        "Search contacts in the connected Salesflare CRM as a Markdown table (name, email, phone, account, contact id). Filter by name or email; page with offset.",
+      inputSchema: z.object({
+        name: z.string().optional().describe("Filter by contact name."),
+        email: z.string().optional().describe("Filter by email."),
+        offset: z.number().int().nonnegative().optional().describe("Offset for paging."),
+        limit: z.number().int().positive().optional().describe("Max 100."),
+      }),
+      execute: async (args) => {
+        if (!ctx.salesflareToken) return { error: notConnected("Salesflare") };
+        return salesflareAdapter.searchContacts(ctx.salesflareToken, args);
+      },
+    }),
+
+    salesflare_list_accounts: tool({
+      description:
+        "List accounts (client companies) in the connected Salesflare CRM as a Markdown table (account, website, phone, email, account id). Filter by name; page with offset.",
+      inputSchema: z.object({
+        name: z.string().optional().describe("Filter by account name."),
+        offset: z.number().int().nonnegative().optional().describe("Offset for paging."),
+        limit: z.number().int().positive().optional().describe("Max 100."),
+      }),
+      execute: async (args) => {
+        if (!ctx.salesflareToken) return { error: notConnected("Salesflare") };
+        return salesflareAdapter.listAccounts(ctx.salesflareToken, args);
+      },
+    }),
+
+    salesflare_list_opportunities: tool({
+      description:
+        "List deals (opportunities) in the connected Salesflare CRM as a Markdown table (opportunity, value, status, account, opportunity id). Page with offset.",
+      inputSchema: z.object({
+        offset: z.number().int().nonnegative().optional().describe("Offset for paging."),
+        limit: z.number().int().positive().optional().describe("Max 100."),
+      }),
+      execute: async (args) => {
+        if (!ctx.salesflareToken) return { error: notConnected("Salesflare") };
+        return salesflareAdapter.listOpportunities(ctx.salesflareToken, args);
+      },
+    }),
+
+    serpapi_google_search: tool({
+      description:
+        "Run a Google search via SerpApi and get the organic results as a Markdown table (position, title, snippet, link). Use for X-ray sourcing, e.g. site:linkedin.com/in \"React\" \"Berlin\". Page with start (0, 10, 20, …).",
+      inputSchema: z.object({
+        query: z.string().describe("The Google search query."),
+        num: z.number().int().positive().optional().describe("Results to return (max 20)."),
+        start: z.number().int().nonnegative().optional().describe("Result offset for paging (0, 10, 20…)."),
+      }),
+      execute: async (args) => {
+        if (!ctx.serpapiToken) return { error: notConnected("SerpApi") };
+        return serpapiAdapter.googleSearch(ctx.serpapiToken, args);
+      },
+    }),
+
     signalhire_search_people: tool({
       description:
         "Search SignalHire profiles by title, company, location, or keywords. Returns name, title, company, location, and profile UID — no contact details. Free of credit cost (draws from a daily search quota); treat results as candidates for signalhire_enrich_person.",
@@ -2406,6 +3072,20 @@ function buildAll(ctx: ToolContext): ToolSet {
       execute: async (args) => {
         if (!ctx.signalhireToken) return { error: notConnected("SignalHire") };
         return signalhireAdapter.enrichPerson(ctx.signalhireToken, args);
+      },
+    }),
+
+    skrapp_find_email: tool({
+      description:
+        "Find a verified work email via Skrapp from a person's first name, last name, and company domain. Returns the email plus a quality signal and company.",
+      inputSchema: z.object({
+        firstName: z.string().describe("First name."),
+        lastName: z.string().describe("Last name."),
+        domain: z.string().describe("Company domain, e.g. acme.com."),
+      }),
+      execute: async (args) => {
+        if (!ctx.skrappToken) return { error: notConnected("Skrapp") };
+        return skrappAdapter.findEmail(ctx.skrappToken, args);
       },
     }),
 
@@ -2521,6 +3201,123 @@ function buildAll(ctx: ToolContext): ToolSet {
       },
     }),
 
+    tomba_find_email: tool({
+      description:
+        "Find a verified work email via Tomba from a person's first name, last name, and company domain. Returns the email plus a confidence score, title, and company.",
+      inputSchema: z.object({
+        firstName: z.string().describe("First name."),
+        lastName: z.string().describe("Last name."),
+        domain: z.string().describe("Company domain, e.g. acme.com."),
+      }),
+      execute: async (args) => {
+        if (!ctx.tombaToken) return { error: notConnected("Tomba") };
+        return tombaAdapter.findEmail(ctx.tombaToken, args);
+      },
+    }),
+
+    tomba_verify_email: tool({
+      description:
+        "Verify one email's deliverability via Tomba (deliverable / risky / undeliverable, plus a status). Use before adding an address to an outreach run.",
+      inputSchema: z.object({
+        email: z.string().describe("The email address to verify."),
+      }),
+      execute: async (args) => {
+        if (!ctx.tombaToken) return { error: notConnected("Tomba") };
+        return tombaAdapter.verifyEmail(ctx.tombaToken, args);
+      },
+    }),
+
+    trestle_validate_phone: tool({
+      description:
+        "Validate a phone number via Trestle — returns whether it's valid plus its line type (Mobile, Landline, NonFixedVOIP, …), carrier, and an activity score (0–100). Use to clean a candidate's number before a calling campaign.",
+      inputSchema: z.object({
+        phone: z.string().describe("Phone number in E.164 format, e.g. +14155551234."),
+      }),
+      execute: async (args) => {
+        if (!ctx.trestleToken) return { error: notConnected("Trestle") };
+        return trestleAdapter.validatePhone(ctx.trestleToken, args);
+      },
+    }),
+
+    messagebird_list_messages: tool({
+      description:
+        "List recent SMS messages in the connected MessageBird (Bird) account as a Markdown table (direction, from, to, body, sent). Page with offset.",
+      inputSchema: z.object({
+        offset: z.number().int().nonnegative().optional(),
+        limit: z.number().int().positive().optional().describe("Max 50."),
+      }),
+      execute: async (args) => {
+        if (!ctx.messagebirdToken) return { error: notConnected("MessageBird") };
+        return messagebirdAdapter.listMessages(ctx.messagebirdToken, args);
+      },
+    }),
+
+    aircall_list_calls: tool({
+      description:
+        "List recent calls in the connected Aircall account as a Markdown table (direction, status, duration, number, started, call id). Page with page.",
+      inputSchema: z.object({
+        page: z.number().int().positive().optional(),
+        limit: z.number().int().positive().optional().describe("Max 50."),
+      }),
+      execute: async (args) => {
+        if (!ctx.aircallToken) return { error: notConnected("Aircall") };
+        return aircallAdapter.listCalls(ctx.aircallToken, args);
+      },
+    }),
+
+    aircall_list_contacts: tool({
+      description:
+        "List contacts in the connected Aircall account as a Markdown table (name, company, phone, email, contact id). Page with page.",
+      inputSchema: z.object({
+        page: z.number().int().positive().optional(),
+        limit: z.number().int().positive().optional().describe("Max 50."),
+      }),
+      execute: async (args) => {
+        if (!ctx.aircallToken) return { error: notConnected("Aircall") };
+        return aircallAdapter.listContacts(ctx.aircallToken, args);
+      },
+    }),
+
+    telegram_get_updates: tool({
+      description:
+        "Read recent messages received by the connected Telegram bot (and its groups) as a Markdown table (from, message, chat, sent).",
+      inputSchema: z.object({
+        limit: z.number().int().positive().optional().describe("Max 100."),
+      }),
+      execute: async (args) => {
+        if (!ctx.telegramToken) return { error: notConnected("Telegram") };
+        return telegramAdapter.getUpdates(ctx.telegramToken, args);
+      },
+    }),
+
+    twilio_list_messages: tool({
+      description:
+        "List recent SMS messages in the connected Twilio account as a Markdown table (from, to, direction, status, message, sent). Filter by To or From phone number (E.164, e.g. +14155551234).",
+      inputSchema: z.object({
+        to: z.string().optional().describe("Filter by recipient number (E.164)."),
+        from: z.string().optional().describe("Filter by sender number (E.164)."),
+        limit: z.number().int().positive().optional().describe("Max 100."),
+      }),
+      execute: async (args) => {
+        if (!ctx.twilioToken) return { error: notConnected("Twilio") };
+        return twilioAdapter.listMessages(ctx.twilioToken, args);
+      },
+    }),
+
+    twilio_list_calls: tool({
+      description:
+        "List recent calls in the connected Twilio account as a Markdown table (from, to, direction, status, duration, started). Filter by To or From phone number (E.164).",
+      inputSchema: z.object({
+        to: z.string().optional().describe("Filter by called number (E.164)."),
+        from: z.string().optional().describe("Filter by caller number (E.164)."),
+        limit: z.number().int().positive().optional().describe("Max 100."),
+      }),
+      execute: async (args) => {
+        if (!ctx.twilioToken) return { error: notConnected("Twilio") };
+        return twilioAdapter.listCalls(ctx.twilioToken, args);
+      },
+    }),
+
     workable_list_jobs: tool({
       description:
         "List jobs in the connected Workable ATS (title, state, department, location, shortcode). Filter by state: draft, published, closed, archived. Use to find the role you are sourcing for — the shortcode scopes candidate lookups.",
@@ -2552,6 +3349,34 @@ function buildAll(ctx: ToolContext): ToolSet {
       execute: async (args) => {
         if (!ctx.workableToken) return { error: notConnected("Workable") };
         return workableAdapter.listCandidates(ctx.workableToken, args);
+      },
+    }),
+
+    wiza_reveal: tool({
+      description:
+        "Reveal a contact's verified email and mobile number via Wiza. Provide a LinkedIn profile URL, OR an email, OR a fullName with a company or domain. Asynchronous: this returns a reveal id; read the result with wiza_get_result after a few seconds.",
+      inputSchema: z.object({
+        linkedinUrl: z.string().optional().describe("LinkedIn profile URL (best input)."),
+        email: z.string().optional().describe("A known email to enrich."),
+        fullName: z.string().optional(),
+        company: z.string().optional().describe("Company name."),
+        domain: z.string().optional().describe("Company website or domain."),
+      }),
+      execute: async (args) => {
+        if (!ctx.wizaToken) return { error: notConnected("Wiza") };
+        return wizaAdapter.reveal(ctx.wizaToken, args);
+      },
+    }),
+
+    wiza_get_result: tool({
+      description:
+        "Read the result of a Wiza reveal using the reveal id returned by wiza_reveal. May report the reveal is still running — if so, call again after working on something else for a moment.",
+      inputSchema: z.object({
+        revealId: z.string().describe("Reveal id from wiza_reveal."),
+      }),
+      execute: async (args) => {
+        if (!ctx.wizaToken) return { error: notConnected("Wiza") };
+        return wizaAdapter.getResult(ctx.wizaToken, args);
       },
     }),
 
@@ -2611,6 +3436,60 @@ function buildAll(ctx: ToolContext): ToolSet {
       execute: async (args) => {
         if (!ctx.woodpeckerToken) return { error: notConnected("Woodpecker") };
         return woodpeckerAdapter.campaignStats(ctx.woodpeckerToken, args);
+      },
+    }),
+
+    zendesksell_search_people: tool({
+      description:
+        "Search people (contacts) in the connected Zendesk Sell CRM as a Markdown table (name, email, phone, company, title, contact id). Pass name to filter; page with page.",
+      inputSchema: z.object({
+        name: z.string().optional().describe("Filter by person name."),
+        page: z.number().int().positive().optional(),
+        limit: z.number().int().positive().optional().describe("Max 100."),
+      }),
+      execute: async (args) => {
+        if (!ctx.zendeskSellToken) return { error: notConnected("Zendesk Sell") };
+        return zendeskSellAdapter.searchPeople(ctx.zendeskSellToken, args);
+      },
+    }),
+
+    zendesksell_search_companies: tool({
+      description:
+        "Search companies (client accounts) in the connected Zendesk Sell CRM as a Markdown table (company, email, phone, website, contact id). Pass name to filter; page with page.",
+      inputSchema: z.object({
+        name: z.string().optional().describe("Filter by company name."),
+        page: z.number().int().positive().optional(),
+        limit: z.number().int().positive().optional().describe("Max 100."),
+      }),
+      execute: async (args) => {
+        if (!ctx.zendeskSellToken) return { error: notConnected("Zendesk Sell") };
+        return zendeskSellAdapter.searchCompanies(ctx.zendeskSellToken, args);
+      },
+    }),
+
+    zendesksell_list_deals: tool({
+      description:
+        "List deals in the connected Zendesk Sell CRM as a Markdown table (deal, value, hot, company, deal id). Page with page.",
+      inputSchema: z.object({
+        page: z.number().int().positive().optional(),
+        limit: z.number().int().positive().optional().describe("Max 100."),
+      }),
+      execute: async (args) => {
+        if (!ctx.zendeskSellToken) return { error: notConnected("Zendesk Sell") };
+        return zendeskSellAdapter.listDeals(ctx.zendeskSellToken, args);
+      },
+    }),
+
+    zerobounce_verify_email: tool({
+      description:
+        "Verify one email's deliverability via ZeroBounce. Returns a status (valid, invalid, catch-all, unknown, spamtrap, abuse, do_not_mail) plus a sub-status reason. Use before adding an address to an outreach run.",
+      inputSchema: z.object({
+        email: z.string().describe("The email address to verify."),
+        ipAddress: z.string().optional().describe("Optional IP to record for the check."),
+      }),
+      execute: async (args) => {
+        if (!ctx.zerobounceToken) return { error: notConnected("ZeroBounce") };
+        return zerobounceAdapter.verifyEmail(ctx.zerobounceToken, args);
       },
     }),
 
@@ -2681,6 +3560,32 @@ function buildAll(ctx: ToolContext): ToolSet {
       },
     }),
 
+    zoom_list_recordings: tool({
+      description:
+        "List cloud recordings in the connected Zoom account as a Markdown table (topic, date, duration, whether a transcript exists, meeting uuid, link). Defaults to the last 30 days; narrow with fromDate/toDate (YYYY-MM-DD).",
+      inputSchema: z.object({
+        fromDate: z.string().optional().describe("Start date YYYY-MM-DD (defaults to 30 days ago)."),
+        toDate: z.string().optional().describe("End date YYYY-MM-DD (defaults to today)."),
+        pageSize: z.number().int().positive().optional().describe("Max 100."),
+      }),
+      execute: async (args) => {
+        if (!ctx.zoomToken) return { error: notConnected("Zoom") };
+        return zoomAdapter.listRecordings(ctx.zoomToken, args);
+      },
+    }),
+
+    zoom_get_transcript: tool({
+      description:
+        "Read the transcript of one Zoom cloud recording, truncated if very long. Get the meetingUuid from zoom_list_recordings (only meetings whose Transcript? column says yes have one).",
+      inputSchema: z.object({
+        meetingUuid: z.string().describe("Meeting uuid from zoom_list_recordings."),
+      }),
+      execute: async (args) => {
+        if (!ctx.zoomToken) return { error: notConnected("Zoom") };
+        return zoomAdapter.getTranscript(ctx.zoomToken, args);
+      },
+    }),
+
     calyflow_create_document: tool({
       description:
         "Save a Markdown document into the current project (e.g. your final analysis/summary). Returns the new document id.",
@@ -2731,6 +3636,9 @@ export const ALL_TOOL_NAMES = [
   "ashby_list_jobs",
   "ashby_list_candidates",
   "ashby_search_candidates",
+  "affinity_search_persons",
+  "affinity_search_organizations",
+  "affinity_list_opportunities",
   "attio_list_objects",
   "attio_query_records",
   "bamboohr_list_jobs",
@@ -2741,9 +3649,12 @@ export const ALL_TOOL_NAMES = [
   "hunter_domain_search",
   "hunter_email_finder",
   "hunter_email_verifier",
+  "adzuna_search_jobs",
+  "adzuna_salary_histogram",
   "apollo_search_people",
   "apollo_enrich_person",
   "apollo_search_organizations",
+  "bouncer_verify_email",
   "brightdata_scrape_linkedin_profiles",
   "brightdata_scrape_linkedin_companies",
   "brightdata_get_snapshot",
@@ -2755,15 +3666,26 @@ export const ALL_TOOL_NAMES = [
   "vincere_search_contacts",
   "vincere_search_applications",
   "vincere_list_talent_pools",
+  "calcom_list_bookings",
+  "calendly_list_events",
+  "calendly_get_invitees",
+  "capsule_search_parties",
+  "capsule_list_opportunities",
   "cats_list_jobs",
   "cats_list_candidates",
   "close_search_leads",
   "close_list_opportunities",
+  "copper_search_people",
+  "copper_search_companies",
+  "copper_search_opportunities",
   "crelate_list_jobs",
   "crelate_search_contacts",
   "crelate_list_contacts",
+  "discord_list_channels",
+  "discord_list_messages",
   "dropcontact_enrich",
   "dropcontact_get_result",
+  "emailable_verify_email",
   "contactout_people_search",
   "contactout_linkedin_enrich",
   "contactout_person_enrich",
@@ -2776,6 +3698,8 @@ export const ALL_TOOL_NAMES = [
   "github_commit_emails",
   "web_search",
   "web_scrape",
+  "avoma_list_meetings",
+  "avoma_get_transcript",
   "fathom_list_meetings",
   "fathom_get_summary",
   "fathom_get_transcript",
@@ -2784,6 +3708,8 @@ export const ALL_TOOL_NAMES = [
   "findymail_verify_email",
   "fireflies_list_meetings",
   "fireflies_get_meeting",
+  "folk_list_people",
+  "folk_list_companies",
   "fullenrich_enrich",
   "fullenrich_get_result",
   "gmail_send_email",
@@ -2792,6 +3718,8 @@ export const ALL_TOOL_NAMES = [
   "gong_list_calls",
   "gong_get_summary",
   "gong_get_transcript",
+  "grain_list_recordings",
+  "grain_get_transcript",
   "googlesheets_list_spreadsheets",
   "googlesheets_list_sheets",
   "googlesheets_read_range",
@@ -2801,6 +3729,9 @@ export const ALL_TOOL_NAMES = [
   "hubspot_search_contacts",
   "hubspot_search_companies",
   "hubspot_search_deals",
+  "insightly_list_contacts",
+  "insightly_list_organisations",
+  "insightly_list_opportunities",
   "instantly_list_campaigns",
   "instantly_list_leads",
   "instantly_campaign_analytics",
@@ -2813,6 +3744,10 @@ export const ALL_TOOL_NAMES = [
   "jobadder_list_job_applications",
   "lever_list_postings",
   "lever_list_opportunities",
+  "klenty_list_cadences",
+  "klenty_get_prospect",
+  "leadmagic_find_email",
+  "leadmagic_verify_email",
   "lemlist_list_campaigns",
   "lemlist_list_activities",
   "lemlist_add_lead",
@@ -2821,6 +3756,8 @@ export const ALL_TOOL_NAMES = [
   "loxo_list_job_candidates",
   "lusha_search_person",
   "lusha_enrich_contacts",
+  "mailshake_list_campaigns",
+  "mailshake_list_recipients",
   "manatal_list_jobs",
   "manatal_search_candidates",
   "manatal_list_job_candidates",
@@ -2833,6 +3770,9 @@ export const ALL_TOOL_NAMES = [
   "notion_search",
   "notion_query_database",
   "notion_read_page",
+  "millionverifier_verify_email",
+  "neverbounce_verify_email",
+  "nymeria_enrich_person",
   "peopledatalabs_enrich_person",
   "peopledatalabs_search_people",
   "pinpoint_list_jobs",
@@ -2840,6 +3780,10 @@ export const ALL_TOOL_NAMES = [
   "pipedrive_search_persons",
   "pipedrive_search_organizations",
   "pipedrive_search_deals",
+  "prospeo_enrich_person",
+  "prospeo_find_mobile",
+  "recruitcrm_search_candidates",
+  "recruitcrm_list_jobs",
   "recruitee_list_offers",
   "recruitee_list_candidates",
   "recruiterflow_list_jobs",
@@ -2849,8 +3793,13 @@ export const ALL_TOOL_NAMES = [
   "rocketreach_search_people",
   "rocketreach_lookup_person",
   "rocketreach_check_lookup",
+  "salesflare_search_contacts",
+  "salesflare_list_accounts",
+  "salesflare_list_opportunities",
+  "serpapi_google_search",
   "signalhire_search_people",
   "signalhire_enrich_person",
+  "skrapp_find_email",
   "replyio_list_sequences",
   "replyio_list_contacts",
   "smartlead_list_campaigns",
@@ -2862,21 +3811,42 @@ export const ALL_TOOL_NAMES = [
   "snov_verify_email",
   "snov_get_task_result",
   "snov_get_profile",
+  "stackexchange_search_users",
+  "stackexchange_top_answerers",
+  "surfe_enrich_person",
+  "surfe_get_result",
   "teamtailor_list_jobs",
   "teamtailor_list_candidates",
   "teamtailor_list_job_candidates",
   "tldv_list_meetings",
   "tldv_get_notes",
   "tldv_get_transcript",
+  "tomba_find_email",
+  "tomba_verify_email",
+  "trestle_validate_phone",
+  "aircall_list_calls",
+  "aircall_list_contacts",
+  "messagebird_list_messages",
+  "telegram_get_updates",
+  "twilio_list_messages",
+  "twilio_list_calls",
+  "wiza_reveal",
+  "wiza_get_result",
   "woodpecker_list_campaigns",
   "woodpecker_list_prospects",
   "woodpecker_campaign_stats",
   "workable_list_jobs",
   "workable_list_candidates",
+  "zendesksell_search_people",
+  "zendesksell_search_companies",
+  "zendesksell_list_deals",
+  "zerobounce_verify_email",
   "zohocrm_search_contacts",
   "zohocrm_search_accounts",
   "zohocrm_search_deals",
   "zohorecruit_search_candidates",
   "zohorecruit_search_job_openings",
+  "zoom_list_recordings",
+  "zoom_get_transcript",
   "calyflow_create_document",
 ] as const;

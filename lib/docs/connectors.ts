@@ -197,6 +197,28 @@ export const DOC_CONNECTORS: Record<string, ConnectorDocContent> = {
       "Self-hosters/testers can point VINCERE_ID_BASE at the Vincere test environment (id.vinceredev.com).",
     ],
   },
+  recruitcrm: {
+    capabilities: [
+      "Search candidates (name, email, phone, position)",
+      "List jobs with their company, status, and city",
+    ],
+    useCases: [
+      "Pull a candidate's contact details from your ATS into a task",
+      "Check which jobs are open before sourcing against them",
+      "Search your candidate database by keyword from an agent",
+    ],
+    whatYouNeed: ["A Recruit CRM account with API access"],
+    steps: [
+      "In Recruit CRM, go to Settings → API & Webhooks and generate an API key.",
+      "In Calyflow, go to Settings → Connectors → Recruit CRM and paste it.",
+    ],
+    configuration: [
+      "Read-only: Calyflow reads candidates and jobs and never edits records in Recruit CRM.",
+    ],
+    links: [
+      { label: "Recruit CRM API docs", url: "https://docs.recruitcrm.io/" },
+    ],
+  },
   recruitis: {
     capabilities: [
       "List your jobs and their candidate pipelines",
@@ -222,6 +244,50 @@ export const DOC_CONNECTORS: Record<string, ConnectorDocContent> = {
   },
 
   // ── CRM ──────────────────────────────────────────────────────────────────
+  affinity: {
+    capabilities: [
+      "Search people and the companies (organizations) in your Affinity CRM",
+      "List deals (opportunities) in your pipeline",
+    ],
+    useCases: [
+      "Brief yourself on a client or candidate before a call using their Affinity record",
+      "Find the right contact at a target company for business development",
+      "Check warm relationships and open deals before working a new account",
+    ],
+    whatYouNeed: ["An Affinity account with permission to create an API key"],
+    steps: [
+      "In Affinity, go to Settings → API and create an API key.",
+      "In Calyflow, go to Settings → Connectors → Affinity and paste the key.",
+    ],
+    configuration: [
+      "Read-only: Calyflow searches Affinity for the people, companies, and deals a task needs and never changes your CRM data.",
+    ],
+    links: [
+      { label: "Affinity API docs", url: "https://api-docs.affinity.co/" },
+    ],
+  },
+  capsule: {
+    capabilities: [
+      "Search people and client companies (parties)",
+      "List deals (opportunities) with their value and milestone",
+    ],
+    useCases: [
+      "Brief yourself on a client account before a call using its Capsule record",
+      "Find the right contact at a target company for outreach",
+      "Prioritise which roles to work first based on open opportunities",
+    ],
+    whatYouNeed: ["A Capsule account with permission to create an API token"],
+    steps: [
+      "In Capsule, go to My Preferences → API Authentication Tokens and generate a token.",
+      "In Calyflow, go to Settings → Connectors → Capsule and paste the token.",
+    ],
+    configuration: [
+      "Read-only: Calyflow searches Capsule for the people, companies, and deals a task needs and never changes your CRM data.",
+    ],
+    links: [
+      { label: "Capsule API docs", url: "https://developer.capsulecrm.com/" },
+    ],
+  },
   close: {
     capabilities: [
       "Search leads (client companies / accounts) and their primary contacts",
@@ -243,6 +309,138 @@ export const DOC_CONNECTORS: Record<string, ConnectorDocContent> = {
     ],
     links: [
       { label: "Close API docs", url: "https://developer.close.com/" },
+    ],
+  },
+  folk: {
+    capabilities: [
+      "List people (contacts) with their email, phone, title, and company",
+      "List client companies in your folk workspace",
+    ],
+    useCases: [
+      "Brief yourself on a client contact before a call using their folk record",
+      "Pull your network of people and companies into research and outreach",
+      "Find the right contact at a target account for business development",
+    ],
+    whatYouNeed: ["A folk account with permission to create an API key"],
+    steps: [
+      "In folk, go to Settings → Workspace → API.",
+      "Create an API key and copy it.",
+      "In Calyflow, go to Settings → Connectors → folk and paste the key.",
+    ],
+    configuration: [
+      "Read-only: Calyflow reads the people and companies a task needs and never changes your folk data.",
+    ],
+    links: [
+      { label: "folk API docs", url: "https://developer.folk.app/" },
+    ],
+  },
+  copper: {
+    capabilities: [
+      "Search people, client companies, and deals (opportunities)",
+      "Pull BD pipeline context into research and outreach",
+    ],
+    useCases: [
+      "Brief yourself on a client account before a call using its Copper record",
+      "Find the right contact at a target company for outreach",
+      "Prioritise which roles to work first based on open opportunities",
+    ],
+    whatYouNeed: ["A Copper account, and the email of the user who created the API key"],
+    steps: [
+      "In Copper, go to Settings → Integrations → API Keys and generate a key.",
+      "In Calyflow, go to Settings → Connectors → Copper and paste it as email:api-key (the email of the user who generated the key).",
+    ],
+    configuration: [
+      "Read-only: Calyflow searches Copper for the people, companies, and deals a task needs and never changes your CRM data.",
+    ],
+    links: [
+      { label: "Copper API docs", url: "https://developer.copper.com/" },
+    ],
+  },
+  serpapi: {
+    capabilities: [
+      "Run a Google search and read the organic results (title, snippet, link)",
+    ],
+    useCases: [
+      'X-ray source candidates, e.g. site:linkedin.com/in "React" "Berlin"',
+      "Find a candidate's public profiles, talks, or portfolio across the web",
+      "Research a target company before a BD outreach",
+    ],
+    whatYouNeed: ["A SerpApi account with an API key"],
+    steps: [
+      "In SerpApi, open Your Account → API Key and copy your private key.",
+      "In Calyflow, go to Settings → Connectors → SerpApi and paste it.",
+    ],
+    configuration: [
+      "Each search draws on your SerpApi search quota; results mirror a live Google search.",
+    ],
+    links: [
+      { label: "SerpApi docs", url: "https://serpapi.com/search-api" },
+    ],
+  },
+  salesflare: {
+    capabilities: [
+      "Search contacts and accounts (client companies)",
+      "List deals (opportunities) with their value and status",
+    ],
+    useCases: [
+      "Brief yourself on a client account before a call using its Salesflare record",
+      "Find the right contact at a target company for outreach",
+      "Prioritise which roles to work first based on open opportunities",
+    ],
+    whatYouNeed: ["A Salesflare account with permission to create an API key"],
+    steps: [
+      "In Salesflare, go to Settings → API key and create a key.",
+      "In Calyflow, go to Settings → Connectors → Salesflare and paste it.",
+    ],
+    configuration: [
+      "Read-only: Calyflow searches Salesflare for the contacts, accounts, and deals a task needs and never changes your CRM data.",
+    ],
+    links: [
+      { label: "Salesflare API docs", url: "https://api.salesflare.com/docs" },
+    ],
+  },
+  "zendesk-sell": {
+    capabilities: [
+      "Search people and client companies (contacts)",
+      "List deals in the BD pipeline",
+    ],
+    useCases: [
+      "Brief yourself on a client account before a call using its Zendesk Sell record",
+      "Find the right contact at a target company for outreach",
+      "Prioritise which roles to work first based on open deals",
+    ],
+    whatYouNeed: ["A Zendesk Sell account with permission to create an access token"],
+    steps: [
+      "In Zendesk Sell, go to Settings → OAuth → Access Tokens and add a token.",
+      "In Calyflow, go to Settings → Connectors → Zendesk Sell and paste the token.",
+    ],
+    configuration: [
+      "Read-only: Calyflow searches Zendesk Sell for the contacts and deals a task needs and never changes your CRM data.",
+    ],
+    links: [
+      { label: "Zendesk Sell API", url: "https://developer.zendesk.com/api-reference/sales-crm/introduction/" },
+    ],
+  },
+  insightly: {
+    capabilities: [
+      "List contacts and client organisations",
+      "List deals (opportunities) with their value and state",
+    ],
+    useCases: [
+      "Brief yourself on a client account before a call using its Insightly record",
+      "Find the right contact at a target company for outreach",
+      "Prioritise which roles to work first based on open opportunities",
+    ],
+    whatYouNeed: ["An Insightly account (your per-user API key and its pod/region)"],
+    steps: [
+      "In Insightly, open User Settings → API to find your API key and its URL (e.g. api.na1.insightly.com — the 'na1' is your pod).",
+      "In Calyflow, go to Settings → Connectors → Insightly and paste it as pod:api-key.",
+    ],
+    configuration: [
+      "Read-only: Calyflow reads the contacts, companies, and deals a task needs and never changes your CRM data.",
+    ],
+    links: [
+      { label: "Insightly API docs", url: "https://api.na1.insightly.com/v3.1/" },
     ],
   },
   hubspot: {
@@ -329,6 +527,114 @@ export const DOC_CONNECTORS: Record<string, ConnectorDocContent> = {
   },
 
   // ── Comms ────────────────────────────────────────────────────────────────
+  aircall: {
+    capabilities: [
+      "List the call log (direction, status, duration, number)",
+      "List your Aircall contacts",
+    ],
+    useCases: [
+      "Review screening-call activity for a candidate's number",
+      "Check the call history before following up with a candidate",
+      "Pull a contact's details from Aircall into a task",
+    ],
+    whatYouNeed: ["An Aircall account with an API key (API ID + token)"],
+    steps: [
+      "In Aircall, go to Settings → Integrations & API → API Keys and create a key.",
+      "In Calyflow, go to Settings → Connectors → Aircall and paste it as api-id:api-token.",
+    ],
+    configuration: [
+      "Read-only: Calyflow reads your call log and contacts and never places calls or edits anything in Aircall.",
+    ],
+    links: [
+      { label: "Aircall API docs", url: "https://developer.aircall.io/api-references/" },
+    ],
+  },
+  discord: {
+    capabilities: [
+      "List the channels of a Discord server",
+      "Read recent messages in a channel (author, message, sent)",
+    ],
+    useCases: [
+      "Read activity in a talent-community server to spot engaged candidates",
+      "Catch up on a channel's recent discussion before reaching out",
+      "Pull message history for context when briefing an agent",
+    ],
+    whatYouNeed: ["A Discord bot token, with the bot invited to your server"],
+    steps: [
+      "At discord.com/developers, create an application, add a Bot, and copy its token.",
+      "Invite the bot to your server with read access, then paste the token in Calyflow under Settings → Connectors → Discord.",
+    ],
+    configuration: [
+      "Read-only: Calyflow reads channels and messages and never posts to Discord. The bot only sees servers and channels it has been given access to.",
+    ],
+    links: [
+      { label: "Discord API docs", url: "https://discord.com/developers/docs/reference" },
+    ],
+  },
+  messagebird: {
+    capabilities: [
+      "List the SMS history (direction, from, to, body, sent)",
+    ],
+    useCases: [
+      "Review the text history with a candidate before following up",
+      "Check whether a candidate replied to an SMS",
+      "Pull recent messages for context when briefing an agent",
+    ],
+    whatYouNeed: ["A MessageBird (Bird) account with a live API access key"],
+    steps: [
+      "In MessageBird/Bird, go to Developers → API access and copy a live Access Key.",
+      "In Calyflow, go to Settings → Connectors → MessageBird and paste it.",
+    ],
+    configuration: [
+      "Read-only: Calyflow reads your message history and never sends SMS from MessageBird.",
+    ],
+    links: [
+      { label: "MessageBird API docs", url: "https://developers.messagebird.com/api/" },
+    ],
+  },
+  telegram: {
+    capabilities: [
+      "Read recent messages received by your Telegram bot and its groups",
+    ],
+    useCases: [
+      "Catch up on activity in a candidate-community group your bot is in",
+      "Read recent messages sent to your recruiting bot",
+      "Pull recent chatter for context when briefing an agent",
+    ],
+    whatYouNeed: ["A Telegram bot token from @BotFather"],
+    steps: [
+      "In Telegram, message @BotFather, create a bot, and copy the token it gives you.",
+      "In Calyflow, go to Settings → Connectors → Telegram and paste the token.",
+    ],
+    configuration: [
+      "Read-only: Calyflow reads recent updates and never sends messages. To see group messages, add the bot to the group and disable its privacy mode in @BotFather.",
+    ],
+    links: [
+      { label: "Telegram Bot API docs", url: "https://core.telegram.org/bots/api" },
+    ],
+  },
+  twilio: {
+    capabilities: [
+      "List the SMS history with a candidate or number",
+      "List the call history (status, direction, duration)",
+    ],
+    useCases: [
+      "Review the text history with a candidate before following up",
+      "Check whether a candidate replied to an outreach text",
+      "Pull the call log for a number to see screening-call activity",
+    ],
+    whatYouNeed: ["A Twilio account (Account SID + Auth Token from the Console)"],
+    steps: [
+      "Open your Twilio Console dashboard and copy the Account SID (starts with AC) and Auth Token.",
+      "In Calyflow, go to Settings → Connectors → Twilio and paste them as account-sid:auth-token.",
+    ],
+    configuration: [
+      "Read-only: Calyflow reads your message and call logs and never sends texts or places calls.",
+    ],
+    links: [
+      { label: "Twilio API docs", url: "https://www.twilio.com/docs/messaging/api" },
+    ],
+  },
   slack: {
     capabilities: [
       "Run any recruiting agent from a Slack channel with /calyflow or @Calyflow",
@@ -434,6 +740,27 @@ export const DOC_CONNECTORS: Record<string, ConnectorDocContent> = {
       "Paste it in Calyflow under Settings → Connectors → Coresignal.",
     ],
   },
+  emailable: {
+    capabilities: [
+      "Verify whether an email is deliverable, with a reason and a typo suggestion",
+    ],
+    useCases: [
+      "Verify a candidate's email before adding it to an outreach run",
+      "Catch a likely typo in a hand-entered address before sending",
+      "Clean a list of emails to protect sender deliverability",
+    ],
+    whatYouNeed: ["An Emailable account with API access"],
+    steps: [
+      "In Emailable, open the dashboard → API and copy your API key.",
+      "In Calyflow, go to Settings → Connectors → Emailable and paste it.",
+    ],
+    configuration: [
+      "Each verification draws on your Emailable credits; returns deliverable / undeliverable / risky / unknown plus a reason and any did-you-mean suggestion.",
+    ],
+    links: [
+      { label: "Emailable API docs", url: "https://emailable.com/docs/api/" },
+    ],
+  },
   dropcontact: {
     capabilities: [
       "Find and verify a professional email for a contact",
@@ -504,6 +831,444 @@ export const DOC_CONNECTORS: Record<string, ConnectorDocContent> = {
       { label: "Findymail API docs", url: "https://www.findymail.com/api/" },
     ],
   },
+  avoma: {
+    capabilities: [
+      "List recorded calls in a date window with attendees and links",
+      "Read the speaker-attributed transcript of a meeting",
+    ],
+    useCases: [
+      "Pull the transcript of a client intake call to capture exactly what was asked for",
+      "Review a candidate screening call without re-listening to the recording",
+      "Brief an agent on a role using the notes from the kickoff call",
+    ],
+    whatYouNeed: ["An Avoma account with a scoped API key"],
+    steps: [
+      "In Avoma, go to Settings → API and create a scoped API key.",
+      "In Calyflow, go to Settings → Connectors → Avoma and paste it.",
+    ],
+    configuration: [
+      "Read-only: Calyflow reads your meetings and transcripts and never changes anything in Avoma. The key returns the meetings of the user it belongs to.",
+    ],
+    links: [
+      { label: "Avoma API docs", url: "https://dev.avoma.com/" },
+    ],
+  },
+  wiza: {
+    capabilities: [
+      "Reveal a verified work email and mobile number from a LinkedIn profile",
+      "Enrich a contact from an email or a name + company",
+    ],
+    useCases: [
+      "Turn a sourced LinkedIn profile into a contactable email and phone",
+      "Get a direct mobile for a candidate before a calling campaign",
+      "Enrich a thin lead (name + company) into a reachable contact for BD",
+    ],
+    whatYouNeed: ["A Wiza account with API access"],
+    steps: [
+      "In Wiza, open Settings → API and create an API key.",
+      "In Calyflow, go to Settings → Connectors → Wiza and paste it.",
+    ],
+    configuration: [
+      "Reveals are asynchronous: a request is submitted, then the result is fetched a few seconds later — agents handle this automatically.",
+      "Lookups draw on your Wiza email and phone credits; credits are charged only for found results.",
+    ],
+    links: [
+      { label: "Wiza API docs", url: "https://docs.wiza.co/" },
+    ],
+  },
+  zoom: {
+    capabilities: [
+      "List your Zoom cloud recordings in a date window",
+      "Read the transcript of a recorded interview or intake call",
+    ],
+    useCases: [
+      "Pull the transcript of a candidate interview to write up a scorecard",
+      "Capture exactly what a hiring manager asked for from the intake call recording",
+      "Review a screening call without re-watching the recording",
+    ],
+    whatYouNeed: [
+      "A Zoom account with cloud recording, and admin rights to build a Server-to-Server OAuth app",
+    ],
+    steps: [
+      "In the Zoom Marketplace, build a Server-to-Server OAuth app and add the cloud_recording:read and user:read scopes.",
+      "Copy its Account ID, Client ID, and Client Secret.",
+      "In Calyflow, go to Settings → Connectors → Zoom and paste them as account-id:client-id:client-secret.",
+    ],
+    configuration: [
+      "Read-only: Calyflow reads your cloud recordings and transcripts and never changes anything in Zoom. Transcripts exist only for meetings recorded with audio transcription enabled.",
+    ],
+    links: [
+      { label: "Zoom Server-to-Server OAuth", url: "https://developers.zoom.us/docs/internal-apps/s2s-oauth/" },
+    ],
+  },
+  grain: {
+    capabilities: [
+      "List your Grain recordings with their dates and links",
+      "Read the speaker-attributed transcript of a recording",
+    ],
+    useCases: [
+      "Pull the transcript of a candidate interview to write up a scorecard",
+      "Capture exactly what a hiring manager asked for from an intake call",
+      "Review a screening call without re-watching the recording",
+    ],
+    whatYouNeed: ["A Grain account with API access"],
+    steps: [
+      "In Grain, go to Settings → Integrations → Grain API and create a Personal Access Token.",
+      "In Calyflow, go to Settings → Connectors → Grain and paste it.",
+    ],
+    configuration: [
+      "Read-only: Calyflow reads your recordings and transcripts and never changes anything in Grain.",
+    ],
+    links: [
+      { label: "Grain API docs", url: "https://developers.grain.com/" },
+    ],
+  },
+  prospeo: {
+    capabilities: [
+      "Find a verified work email from a name + company website, or a LinkedIn URL",
+      "Find a direct mobile number from a LinkedIn profile",
+    ],
+    useCases: [
+      "Find a verified email for a sourced candidate before reaching out",
+      "Get a direct mobile number for a candidate from their LinkedIn profile",
+      "Enrich a thin lead into a reachable contact for BD outreach",
+    ],
+    whatYouNeed: ["A Prospeo account with API access"],
+    steps: [
+      "In Prospeo, open Settings → API and copy your API key.",
+      "In Calyflow, go to Settings → Connectors → Prospeo and paste it.",
+    ],
+    configuration: [
+      "Lookups are synchronous and draw on your Prospeo credits; a verified-email search only charges a credit when a verified email is found.",
+    ],
+    links: [
+      { label: "Prospeo API docs", url: "https://prospeo.io/api-docs" },
+    ],
+  },
+  klenty: {
+    capabilities: [
+      "List the sales cadences (outreach sequences) in the account",
+      "Look up a prospect by email and see their status",
+    ],
+    useCases: [
+      "Check whether a candidate is already in an outreach cadence before contacting them again",
+      "Pull a prospect's status and details from Klenty into a task",
+      "Review which cadences are running before adding people",
+    ],
+    whatYouNeed: ["A Klenty account with API access, and the user email the key belongs to"],
+    steps: [
+      "In Klenty, go to Settings → API and copy your API key.",
+      "In Calyflow, go to Settings → Connectors → Klenty and paste it as your-login-email:api-key.",
+    ],
+    configuration: [
+      "Read-only: Calyflow reads your cadences and prospects and never sends or edits outreach in Klenty.",
+    ],
+    links: [
+      { label: "Klenty API docs", url: "https://support.klenty.com/en/articles/3197537-getting-started-with-klenty-api" },
+    ],
+  },
+  leadmagic: {
+    capabilities: [
+      "Find a verified work email from a name and company",
+      "Verify whether an email address is deliverable",
+    ],
+    useCases: [
+      "Find the likely work email for a sourced candidate, paying only for valid hits",
+      "Verify a list of emails before a campaign to protect deliverability",
+      "Enrich a thin lead into a reachable contact for BD outreach",
+    ],
+    whatYouNeed: ["A LeadMagic account with API access"],
+    steps: [
+      "In LeadMagic, open Settings → API and copy your API key.",
+      "In Calyflow, go to Settings → Connectors → LeadMagic and paste it.",
+    ],
+    configuration: [
+      "Lookups are synchronous; the email finder charges a credit only when a valid email is found.",
+    ],
+    links: [
+      { label: "LeadMagic API docs", url: "https://docs.leadmagic.io/" },
+    ],
+  },
+  adzuna: {
+    capabilities: [
+      "Search live job postings by title, location, and salary",
+      "Get the salary distribution for a role for benchmarking",
+    ],
+    useCases: [
+      "Benchmark a role's salary before advising a client on a range",
+      "Gauge live market demand and competitor postings for a role",
+      "Map where a skill is being hired across regions",
+    ],
+    whatYouNeed: ["An Adzuna developer account (a free app_id + app_key)"],
+    steps: [
+      "Register at developer.adzuna.com to get an app_id and app_key.",
+      "In Calyflow, go to Settings → Connectors → Adzuna and paste them as app-id:app-key.",
+    ],
+    configuration: [
+      "Read-only public job-market data; defaults to the UK (gb) but supports many country codes (us, au, ca, de, fr, …).",
+    ],
+    links: [
+      { label: "Adzuna API docs", url: "https://developer.adzuna.com/" },
+    ],
+  },
+  bouncer: {
+    capabilities: [
+      "Verify whether an email address is deliverable, with a reason",
+    ],
+    useCases: [
+      "Verify a candidate's email before adding it to an outreach run",
+      "Clean a list of emails to protect sender deliverability",
+      "Check a risky-looking address before sending",
+    ],
+    whatYouNeed: ["A Bouncer account with API access"],
+    steps: [
+      "In Bouncer, open your account → API and copy your API key.",
+      "In Calyflow, go to Settings → Connectors → Bouncer and paste it.",
+    ],
+    configuration: [
+      "Each verification draws on your Bouncer credits; returns deliverable / undeliverable / risky / unknown plus a reason.",
+    ],
+    links: [
+      { label: "Bouncer API docs", url: "https://docs.usebouncer.com/" },
+    ],
+  },
+  calcom: {
+    capabilities: [
+      "List booked meetings with their times, status, and attendees",
+    ],
+    useCases: [
+      "Check which candidate interviews are booked this week",
+      "See who booked a screening call (attendee name and email)",
+      "Confirm a candidate booked a slot before prepping for it",
+    ],
+    whatYouNeed: ["A Cal.com account with API access"],
+    steps: [
+      "In Cal.com, go to Settings → Developer → API keys and create a key (it starts with cal_).",
+      "In Calyflow, go to Settings → Connectors → Cal.com and paste it.",
+    ],
+    configuration: [
+      "Read-only: Calyflow reads your bookings and their attendees and never books or changes anything in Cal.com.",
+    ],
+    links: [
+      { label: "Cal.com API docs", url: "https://cal.com/docs/api-reference/v2/introduction" },
+    ],
+  },
+  calendly: {
+    capabilities: [
+      "List booked interview events with their times and status",
+      "See who booked an event (invitee name and email)",
+    ],
+    useCases: [
+      "Check which candidate interviews are booked this week",
+      "Pull the invitee details for a scheduled screening call",
+      "Confirm a candidate booked the slot before prepping for it",
+    ],
+    whatYouNeed: ["A Calendly account with API access"],
+    steps: [
+      "In Calendly, go to Integrations → API & Webhooks → Personal access tokens and create a token.",
+      "In Calyflow, go to Settings → Connectors → Calendly and paste it.",
+    ],
+    configuration: [
+      "Read-only: Calyflow reads your scheduled events and their invitees and never books or changes anything in Calendly.",
+    ],
+    links: [
+      { label: "Calendly API docs", url: "https://developer.calendly.com/" },
+    ],
+  },
+  millionverifier: {
+    capabilities: [
+      "Verify whether an email address is deliverable, with a quality label",
+    ],
+    useCases: [
+      "Verify a candidate's email before adding it to an outreach run",
+      "Clean a list of emails cheaply in bulk to protect sender deliverability",
+      "Catch disposable or catch-all addresses before sending",
+    ],
+    whatYouNeed: ["A MillionVerifier account with API access"],
+    steps: [
+      "In MillionVerifier, open your account → API and copy your API key.",
+      "In Calyflow, go to Settings → Connectors → MillionVerifier and paste it.",
+    ],
+    configuration: [
+      "Each verification draws on your MillionVerifier credits; returns ok / catch_all / unknown / disposable / invalid.",
+    ],
+    links: [
+      { label: "MillionVerifier API docs", url: "https://developer.millionverifier.com/" },
+    ],
+  },
+  neverbounce: {
+    capabilities: [
+      "Verify whether an email address is deliverable",
+    ],
+    useCases: [
+      "Verify a candidate's email before adding it to an outreach run",
+      "Clean a list of emails to protect sender deliverability",
+      "Catch disposable or catch-all addresses before sending",
+    ],
+    whatYouNeed: ["A NeverBounce account with API access"],
+    steps: [
+      "In NeverBounce, open your account → Apps → Custom Integration and copy your API key (starts with secret_).",
+      "In Calyflow, go to Settings → Connectors → NeverBounce and paste it.",
+    ],
+    configuration: [
+      "Each verification draws on your NeverBounce credits; returns valid / invalid / disposable / catchall / unknown.",
+    ],
+    links: [
+      { label: "NeverBounce API docs", url: "https://developers.neverbounce.com/" },
+    ],
+  },
+  nymeria: {
+    capabilities: [
+      "Enrich a person's emails and mobile from a LinkedIn URL or email",
+    ],
+    useCases: [
+      "Turn a sourced LinkedIn profile into a contactable email and phone",
+      "Find a direct mobile for a candidate before a calling campaign",
+      "Fill in a missing work email from a personal email you already have",
+    ],
+    whatYouNeed: ["A Nymeria account with API access"],
+    steps: [
+      "In Nymeria, open Settings → API keys and copy your key.",
+      "In Calyflow, go to Settings → Connectors → Nymeria and paste it.",
+    ],
+    configuration: [
+      "Lookups are synchronous and draw on your Nymeria credits; a credit is charged when a match is found.",
+    ],
+    links: [
+      { label: "Nymeria API docs", url: "https://www.nymeria.io/developers" },
+    ],
+  },
+  mailshake: {
+    capabilities: [
+      "List your cold-email campaigns",
+      "List the recipients of a campaign",
+    ],
+    useCases: [
+      "Check which candidates or clients are already in an outreach campaign",
+      "Review a campaign's recipient list before adding more",
+      "Avoid double-contacting someone already in a sequence",
+    ],
+    whatYouNeed: ["A Mailshake account with API access"],
+    steps: [
+      "In Mailshake, open Extensions → API and copy your API key.",
+      "In Calyflow, go to Settings → Connectors → Mailshake and paste it.",
+    ],
+    configuration: [
+      "Read-only: Calyflow reads your campaigns and recipients and never sends or edits outreach in Mailshake.",
+    ],
+    links: [
+      { label: "Mailshake API docs", url: "https://docs.mailshake.com/category/171-api" },
+    ],
+  },
+  zerobounce: {
+    capabilities: [
+      "Verify whether an email address is deliverable, with a status reason",
+    ],
+    useCases: [
+      "Verify a candidate's email before adding it to an outreach run",
+      "Clean a list of emails to protect sender deliverability",
+      "Check a risky-looking address (catch-all, role, disposable) before sending",
+    ],
+    whatYouNeed: ["A ZeroBounce account with API access"],
+    steps: [
+      "In ZeroBounce, open your account → API and copy your API key.",
+      "In Calyflow, go to Settings → Connectors → ZeroBounce and paste it.",
+    ],
+    configuration: [
+      "Each verification draws on your ZeroBounce credits; returns valid / invalid / catch-all / unknown / spamtrap / abuse / do_not_mail plus a sub-status.",
+    ],
+    links: [
+      { label: "ZeroBounce API docs", url: "https://www.zerobounce.net/docs/" },
+    ],
+  },
+  stackexchange: {
+    capabilities: [
+      "Search Stack Exchange users by name, ranked by reputation",
+      "List the top answerers for a skill tag to source developers",
+    ],
+    useCases: [
+      "Source strong developers for a technology by its top Stack Overflow answerers",
+      "Look up a candidate's Stack Overflow profile and reputation",
+      "Build a shortlist of experts in a niche skill (e.g. rust, kubernetes)",
+    ],
+    whatYouNeed: ["A Stack Apps API key (free; raises your daily request quota)"],
+    steps: [
+      "Register an app at stackapps.com to get a key.",
+      "In Calyflow, go to Settings → Connectors → Stack Exchange and paste it.",
+    ],
+    configuration: [
+      "Read-only public profile data (no contact details); defaults to stackoverflow but supports other Stack Exchange sites. Pair with an enrichment connector to find contact info for sourced people.",
+    ],
+    links: [
+      { label: "Stack Exchange API docs", url: "https://api.stackexchange.com/docs" },
+    ],
+  },
+  tomba: {
+    capabilities: [
+      "Find a verified work email from a name and company domain",
+      "Verify whether an email address is deliverable",
+    ],
+    useCases: [
+      "Find the likely work email for a sourced candidate, with a confidence score",
+      "Verify a list of emails before a campaign to protect deliverability",
+      "Enrich a thin lead into a reachable contact for BD outreach",
+    ],
+    whatYouNeed: ["A Tomba account with API access (a key and a secret)"],
+    steps: [
+      "In Tomba, open Settings → API and copy your key (ta_…) and secret (ts_…).",
+      "In Calyflow, go to Settings → Connectors → Tomba and paste them as key:secret.",
+    ],
+    configuration: [
+      "Lookups are synchronous and draw on your Tomba credits; the finder returns a confidence score.",
+    ],
+    links: [
+      { label: "Tomba API docs", url: "https://docs.tomba.io/" },
+    ],
+  },
+  trestle: {
+    capabilities: [
+      "Validate a phone number — valid/invalid, line type, carrier, and activity",
+    ],
+    useCases: [
+      "Check a candidate's number is a reachable mobile before a calling campaign",
+      "Filter out disconnected or VOIP numbers from a list",
+      "Identify the carrier and line type for a contact number",
+    ],
+    whatYouNeed: ["A Trestle account with API access"],
+    steps: [
+      "In Trestle, open your account → API and copy your API key.",
+      "In Calyflow, go to Settings → Connectors → Trestle and paste it.",
+    ],
+    configuration: [
+      "Each lookup draws on your Trestle credits; the activity score (0–100) reflects recent activity on the number.",
+    ],
+    links: [
+      { label: "Trestle API docs", url: "https://docs.trestleiq.com/" },
+    ],
+  },
+  surfe: {
+    capabilities: [
+      "Enrich a contact's work email and mobile number",
+      "Enrich from a name + company or a LinkedIn profile",
+    ],
+    useCases: [
+      "Turn a sourced LinkedIn profile into a contactable email and mobile",
+      "Find a direct mobile for a candidate before a calling campaign",
+      "Enrich a thin lead into a reachable contact for BD outreach",
+    ],
+    whatYouNeed: ["A Surfe account with API access"],
+    steps: [
+      "In Surfe, open Settings → API and copy your API key.",
+      "In Calyflow, go to Settings → Connectors → Surfe and paste it.",
+    ],
+    configuration: [
+      "Enrichment is asynchronous: a request is submitted, then the result is fetched a few seconds later — agents handle this automatically.",
+      "Surfe bills separate email and mobile credits; a credit is used when a match is found.",
+    ],
+    links: [
+      { label: "Surfe API docs", url: "https://developers.surfe.com/" },
+    ],
+  },
   gong: {
     useCases: [
       "Pull the summary of an intake call to brief an agent on the role",
@@ -512,6 +1277,27 @@ export const DOC_CONNECTORS: Record<string, ConnectorDocContent> = {
     whatYouNeed: ["A Gong account; an admin creates the API access key"],
     connectionOptions: [
       "The key field is `access-key:secret` — a Gong admin generates both under company settings → Ecosystem → API.",
+    ],
+  },
+  skrapp: {
+    capabilities: [
+      "Find a verified work email from a name and company domain",
+    ],
+    useCases: [
+      "Find the likely work email for a sourced candidate, with a quality signal",
+      "Turn a name + company into a reachable contact for outreach",
+      "Enrich a thin lead before adding it to a sequence",
+    ],
+    whatYouNeed: ["A Skrapp account on a premium plan (API access is premium-only)"],
+    steps: [
+      "In Skrapp, open Settings → API and copy your access key.",
+      "In Calyflow, go to Settings → Connectors → Skrapp and paste it.",
+    ],
+    configuration: [
+      "Lookups are synchronous and draw on your Skrapp email credits; results include a quality signal.",
+    ],
+    links: [
+      { label: "Skrapp API docs", url: "https://skrapp.io/api" },
     ],
   },
   snov: {
