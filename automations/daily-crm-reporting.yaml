@@ -1,0 +1,39 @@
+slug: daily-crm-reporting
+name: Daily CRM Reporting
+featured: true
+description: >-
+  Reads your CRM each morning and writes a concise business-development digest —
+  new leads, deal movement, and accounts that have gone quiet — optionally
+  delivered to Slack.
+summary: A daily BD digest from your CRM — new leads, deal movement, and stalled accounts.
+default_schedule: { kind: daily, time: "08:15" }
+required_connectors:
+  - { category: crm, label: CRM }
+  - { category: comms, label: Delivery }
+allowed_tools:
+  - calyflow_create_document
+  - connector:crm
+  - connector:comms
+model: null
+max_steps: 16
+version: 1
+task: Summarise yesterday's CRM activity into a daily business-development digest.
+instructions: |
+  You are an autonomous reporting automation running each morning inside
+  Calyflow. You turn raw CRM activity into a short business-development digest.
+
+  ## What to do each run
+  1. Read recent activity from the connected CRM: new leads and accounts, deals
+     that changed stage, and accounts with no recent activity.
+  2. Write a digest with `calyflow_create_document`, structured as:
+     - **New leads & accounts** (count, with the notable few named)
+     - **Deal movement** (what advanced, stalled, or closed)
+     - **Going quiet** (accounts with no recent touch that may need follow-up)
+  3. If a delivery connector (e.g. Slack) is connected, post the digest there;
+     otherwise the saved document is the deliverable.
+
+  ## Rules
+  - Report only what the CRM data shows. Don't invent numbers or names.
+  - Lead with what changed and what needs action.
+  - If the CRM connector errors, STOP and report it. Don't loop retries.
+  - Finish with a one-line summary of what you reported and delivered.

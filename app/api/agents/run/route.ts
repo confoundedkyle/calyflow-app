@@ -18,9 +18,9 @@ import {
 } from "@/lib/queries";
 import {
   CONNECTOR_CATEGORY_LABELS,
-  CONNECTOR_REQUIREMENT_PREFIX,
   connectorLabel,
   connectorsForCategory,
+  expandConnectorPlaceholders,
   providerToolPrefix,
   requiredConnectorCategories,
 } from "@/lib/connectors";
@@ -179,9 +179,6 @@ export async function POST(request: NextRequest) {
   const baseAllowed: string[] = Array.isArray(agent.allowed_tools)
     ? agent.allowed_tools
     : [];
-  const allowed: string[] = baseAllowed.filter(
-    (t) => !t.startsWith(CONNECTOR_REQUIREMENT_PREFIX),
-  );
   const chosenSources: { label: string; provider: string; prefix: string }[] =
     [];
   for (const category of requiredConnectorCategories(baseAllowed)) {
@@ -208,10 +205,15 @@ export async function POST(request: NextRequest) {
         { status: 400 },
       );
     }
-    const prefix = providerToolPrefix(provider);
-    allowed.push(...ALL_TOOL_NAMES.filter((t) => t.startsWith(prefix)));
-    chosenSources.push({ label, provider, prefix });
+    chosenSources.push({ label, provider, prefix: providerToolPrefix(provider) });
   }
+  // Strip connector:<category> placeholders and expand each bound category to
+  // its provider's concrete tools (shared with the automation cron).
+  const allowed = expandConnectorPlaceholders(
+    baseAllowed,
+    connectorChoices,
+    ALL_TOOL_NAMES,
+  );
 
   // Resolve a valid token for each connector the agent uses, up front
   // (refreshing if needed). A configured-but-broken connection fails the run

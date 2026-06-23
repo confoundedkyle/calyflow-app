@@ -199,6 +199,112 @@ async function seedAgents() {
   }
 }
 
+interface AutomationYaml {
+  slug: string;
+  name: string;
+  description: string;
+  summary?: string;
+  instructions: string;
+  allowed_tools: string[];
+  model: string | null;
+  max_steps: number;
+  required_connectors?: { category: string; label: string }[];
+  default_schedule?: { kind: string; time?: string } | null;
+  task?: string;
+  version?: number;
+  featured?: boolean;
+  og_description?: string;
+  lead?: string;
+  long_description?: string;
+}
+
+async function seedAutomations() {
+  const dir = join(__dirname, "..", "automations");
+  let files: string[];
+  try {
+    files = readdirSync(dir).filter((f) => f.endsWith(".yaml"));
+  } catch {
+    return; // no automations directory yet — nothing to seed
+  }
+
+  // Retire library automations whose YAML was removed from the repo. Workspace
+  // copies keep working — they're detached (library_automation_id → null).
+  const repoSlugs = files.map(
+    (f) => (load(readFileSync(join(dir, f), "utf8")) as AutomationYaml).slug,
+  );
+  const { data: existing } = await db
+    .from("library_automations")
+    .select("id, slug");
+  const stale = (existing ?? []).filter((a) => !repoSlugs.includes(a.slug));
+  for (const auto of stale) {
+    await db
+      .from("workspace_automations")
+      .update({ library_automation_id: null })
+      .eq("library_automation_id", auto.id);
+    const { error } = await db
+      .from("library_automations")
+      .delete()
+      .eq("id", auto.id);
+    if (error) throw new Error(`retire ${auto.slug}: ${error.message}`);
+    console.log(`✗ retired automation ${auto.slug}`);
+  }
+
+  for (const file of files) {
+    const a = load(readFileSync(join(dir, file), "utf8")) as AutomationYaml;
+    const version = a.version ?? 1;
+    const { data: lib, error } = await db
+      .from("library_automations")
+      .upsert(
+        {
+          slug: a.slug,
+          name: a.name,
+          description: a.description,
+          summary: a.summary ?? null,
+          instructions: a.instructions,
+          allowed_tools: a.allowed_tools,
+          model: a.model ?? null,
+          max_steps: a.max_steps ?? 12,
+          required_connectors: a.required_connectors ?? [],
+          default_schedule: a.default_schedule ?? null,
+          task: a.task ?? null,
+          version,
+          featured: a.featured ?? false,
+          og_description: a.og_description ?? null,
+          lead: a.lead ?? null,
+          long_description: a.long_description ?? null,
+        },
+        { onConflict: "slug" },
+      )
+      .select("id")
+      .single();
+    if (error || !lib) throw new Error(`${file}: ${error?.message ?? "no row"}`);
+
+    // Propagate the new version to imported copies BEHIND it — but only the
+    // library-owned fields (instructions/tools/model/max_steps/version). The
+    // workspace's own config — connector_bindings, schedule, enabled, name,
+    // archived state — is left untouched.
+    const { data: upgraded, error: upErr } = await db
+      .from("workspace_automations")
+      .update({
+        instructions: a.instructions,
+        allowed_tools: a.allowed_tools,
+        model: a.model ?? null,
+        max_steps: a.max_steps ?? 12,
+        imported_version: version,
+      })
+      .eq("library_automation_id", lib.id)
+      .is("archived_at", null)
+      .or(`imported_version.is.null,imported_version.lt.${version}`)
+      .select("id");
+    if (upErr) throw new Error(`${file} (upgrade copies): ${upErr.message}`);
+
+    const n = upgraded?.length ?? 0;
+    console.log(
+      `✓ automation ${a.slug} (v${version})${n ? ` — upgraded ${n} copies` : ""}`,
+    );
+  }
+}
+
 async function seedCatalog() {
   const snapshot = JSON.parse(
     readFileSync(join(__dirname, "..", "data", "model-catalog-snapshot.json"), "utf8"),
@@ -218,6 +324,7 @@ async function seedCatalog() {
 (async () => {
   await seedWorkflows();
   await seedAgents();
+  await seedAutomations();
   await seedCatalog();
   console.log("Seed complete.");
 })().catch((err) => {

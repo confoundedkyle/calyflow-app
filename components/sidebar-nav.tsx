@@ -14,6 +14,8 @@ const mainNav = [
   { href: "/settings", label: "Settings" },
 ];
 
+const operationsNav = [{ href: "/automation-hub", label: "Automation Hub" }];
+
 function cn(...classes: (string | undefined | false | null)[]) {
   return classes.filter(Boolean).join(" ");
 }
@@ -246,6 +248,27 @@ export function SidebarNav({
       )}
 
       {clients.map((client) => clientBlock(client))}
+
+      <div className="my-2 border-t border-navy-800/10" />
+      <div className="mb-1 px-3">
+        <span className="text-[11px] font-semibold uppercase tracking-widest text-navy-800/35">
+          Operations
+        </span>
+      </div>
+      {operationsNav.map((item) => (
+        <Link
+          key={item.href}
+          href={item.href}
+          className={cn(
+            "rounded-lg px-3 py-2 text-sm font-medium transition-colors",
+            isActive(item.href)
+              ? "bg-mint-400/15 text-mint-700"
+              : "text-navy-800/65 hover:bg-cream-100 hover:text-navy-900",
+          )}
+        >
+          {item.label}
+        </Link>
+      ))}
     </div>
   );
 }

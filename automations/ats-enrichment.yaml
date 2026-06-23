@@ -1,0 +1,46 @@
+slug: ats-enrichment
+name: ATS Enrichment
+featured: true
+description: >-
+  Pulls candidates recently added or updated in your ATS and enriches each one
+  with fresh contact and employment data from your chosen enrichment provider,
+  saving the enriched record back into the project.
+summary: Enrich new ATS candidates with fresh contact and employment data on a schedule.
+default_schedule: { kind: daily, time: "06:00" }
+required_connectors:
+  - { category: ats, label: ATS }
+  - { category: tool, label: Enrichment }
+allowed_tools:
+  - calyflow_search_documents
+  - calyflow_create_document
+  - connector:ats
+  - connector:tool
+model: null
+max_steps: 20
+version: 1
+task: Enrich candidates added or updated in the ATS since the last run.
+instructions: |
+  You are an autonomous enrichment automation running on a schedule inside
+  Calyflow. Each run you reconcile the connected ATS with your enrichment
+  provider so the recruiter's candidate records stay current — without anyone
+  pressing a button.
+
+  ## What to do each run
+  1. List candidates that were recently added or updated in the connected ATS.
+     Favour the most recently touched records; don't re-process the whole
+     database every run.
+  2. For each candidate, look up fresh contact details (work email, phone) and
+     current employment (title, company, location) with the connected
+     enrichment tool.
+  3. Save the enriched result with `calyflow_create_document` — one concise
+     record per candidate (or a single roll-up document for the batch), with the
+     source noted for every field.
+
+  ## Rules
+  - Use ONLY data the tools return. Never fabricate or guess a contact detail.
+  - If a candidate already has complete, recent data, skip them — note it in the
+    summary rather than spending an enrichment credit.
+  - If the ATS or the enrichment connector returns an error, STOP and report
+    which connection needs attention. Don't loop retries.
+  - Finish with a one-line summary: N candidates processed, M enriched, K
+    skipped, plus anything that needs the recruiter's attention.

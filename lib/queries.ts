@@ -3,11 +3,14 @@ import { cache } from "react";
 import { isAgenticModel, providerLabel } from "./ai-catalog";
 import { db } from "./db";
 import { env } from "./env";
+import { requiredConnectorCategories } from "./connectors";
 import type {
   AgentChatTurn,
   AgentRun,
   AiProvider,
   AtsCandidate,
+  AutomationStats,
+  AutomationWithRuns,
   CatalogModel,
   Client,
   Connection,
@@ -17,6 +20,7 @@ import type {
   DocKind,
   DocScope,
   LibraryAgent,
+  LibraryAutomation,
   LibraryWorkflow,
   ModuleKey,
   Project,
@@ -24,6 +28,7 @@ import type {
   UserPreferences,
   WorkflowRun,
   WorkspaceAgent,
+  WorkspaceAutomation,
   WorkspaceModule,
   WorkspaceWorkflow,
 } from "./types";
@@ -485,6 +490,168 @@ export async function getWorkspaceAgentByLibrarySlug(
     .limit(1)
     .maybeSingle();
   return (data as WorkspaceAgent) ?? null;
+}
+
+// --- Automation Hub ---
+
+export async function listLibraryAutomations(): Promise<LibraryAutomation[]> {
+  const { data, error } = await db()
+    .from("library_automations")
+    .select("*")
+    .order("name");
+  if (error) throw error;
+  return (data ?? []) as LibraryAutomation[];
+}
+
+export async function getLibraryAutomation(
+  id: string,
+): Promise<LibraryAutomation | null> {
+  const { data } = await db()
+    .from("library_automations")
+    .select("*")
+    .eq("id", id)
+    .maybeSingle();
+  return (data as LibraryAutomation) ?? null;
+}
+
+export async function getWorkspaceAutomation(
+  workspaceId: string,
+  id: string,
+): Promise<(WorkspaceAutomation & { library: LibraryAutomation | null }) | null> {
+  const { data } = await db()
+    .from("workspace_automations")
+    .select("*, library:library_automations(*)")
+    .eq("workspace_id", workspaceId)
+    .eq("id", id)
+    .maybeSingle();
+  return (data as WorkspaceAutomation & { library: LibraryAutomation | null }) ?? null;
+}
+
+/** The workspace's configured automations for the Hub table — each with its
+ *  library row, latest run, and the statuses of its last 5 runs (the RECENT
+ *  squares, ordered oldest → newest). */
+export async function listWorkspaceAutomations(
+  workspaceId: string,
+): Promise<AutomationWithRuns[]> {
+  const { data, error } = await db()
+    .from("workspace_automations")
+    .select("*, library:library_automations(*)")
+    .eq("workspace_id", workspaceId)
+    .is("archived_at", null)
+    .order("created_at");
+  if (error) throw error;
+  const automations = (data ?? []) as (WorkspaceAutomation & {
+    library: LibraryAutomation | null;
+  })[];
+  if (automations.length === 0) return [];
+
+  const { data: runData } = await db()
+    .from("agent_runs")
+    .select("workspace_automation_id, status, created_at, output_text, error_message")
+    .in("workspace_automation_id", automations.map((a) => a.id))
+    .order("created_at", { ascending: false });
+  const runs = (runData ?? []) as (Pick<
+    AgentRun,
+    "status" | "created_at" | "output_text" | "error_message"
+  > & { workspace_automation_id: string })[];
+
+  const byAutomation = new Map<string, typeof runs>();
+  for (const r of runs) {
+    const list = byAutomation.get(r.workspace_automation_id) ?? [];
+    list.push(r);
+    byAutomation.set(r.workspace_automation_id, list);
+  }
+
+  return automations.map((a) => {
+    const its = byAutomation.get(a.id) ?? []; // newest → oldest
+    return {
+      ...a,
+      lastRun: its[0]
+        ? {
+            status: its[0].status,
+            created_at: its[0].created_at,
+            output_text: its[0].output_text,
+            error_message: its[0].error_message,
+          }
+        : null,
+      recentStatuses: its
+        .slice(0, 5)
+        .map((r) => r.status)
+        .reverse(), // oldest → newest for left-to-right squares
+    };
+  });
+}
+
+/** The three Hub stat tiles. Needs-attention = enabled automations that failed
+ *  OR whose bound connector exists but is errored/revoked. */
+export async function getAutomationStats(
+  workspaceId: string,
+): Promise<AutomationStats> {
+  const [{ data: autoData }, connections] = await Promise.all([
+    db()
+      .from("workspace_automations")
+      .select("id, name, enabled, status, connector_bindings, allowed_tools")
+      .eq("workspace_id", workspaceId)
+      .is("archived_at", null),
+    listConnections(workspaceId),
+  ]);
+  const automations = (autoData ?? []) as Pick<
+    WorkspaceAutomation,
+    "id" | "name" | "enabled" | "status" | "connector_bindings" | "allowed_tools"
+  >[];
+  const statusByProvider = new Map(
+    connections.map((c) => [c.provider, c.status]),
+  );
+  const connected = (a: (typeof automations)[number]) =>
+    requiredConnectorCategories(a.allowed_tools ?? []).every((cat) => {
+      const provider = a.connector_bindings?.[cat];
+      return provider != null && statusByProvider.get(provider) === "active";
+    });
+
+  // Active = enabled AND fully connected (it can actually run). Anything enabled
+  // but not connected, or in a failed state, needs attention.
+  const enabled = automations.filter((a) => a.enabled);
+  const active = enabled.filter((a) => connected(a));
+  const needing = enabled.filter((a) => !connected(a) || a.status === "failed");
+
+  const startOfDay = new Date();
+  startOfDay.setUTCHours(0, 0, 0, 0);
+  const { data: todayRuns } = await db()
+    .from("agent_runs")
+    .select("status, automation:workspace_automations!inner(workspace_id)")
+    .eq("workspace_automations.workspace_id", workspaceId)
+    .gte("created_at", startOfDay.toISOString());
+  const runs = (todayRuns ?? []) as { status: AgentRun["status"] }[];
+  const succeeded = runs.filter((r) => r.status === "succeeded").length;
+
+  return {
+    activeCount: active.length,
+    runsToday: runs.length,
+    successPct: runs.length ? Math.round((succeeded / runs.length) * 100) : null,
+    needsAttention: {
+      count: needing.length,
+      firstName: needing[0]?.name ?? null,
+    },
+  };
+}
+
+/** Enabled automations that are due to run, across ALL workspaces — the
+ *  automation cron is unauthenticated (service-role) and fans out over every
+ *  workspace, so this read is intentionally NOT workspace-scoped. Due = no
+ *  next_run_at yet, or next_run_at in the past. */
+export async function listAutomationsDue(
+  now: Date,
+): Promise<(WorkspaceAutomation & { library: { task: string | null } | null })[]> {
+  const { data, error } = await db()
+    .from("workspace_automations")
+    .select("*, library:library_automations(task)")
+    .eq("enabled", true)
+    .is("archived_at", null)
+    .or(`next_run_at.is.null,next_run_at.lte.${now.toISOString()}`);
+  if (error) throw error;
+  return (data ?? []) as (WorkspaceAutomation & {
+    library: { task: string | null } | null;
+  })[];
 }
 
 /** Active projects that want an automated Slack report, across ALL workspaces —

@@ -38,8 +38,9 @@ export interface HeadlessRunResult {
 export async function runAgentHeadless(params: {
   workspaceId: string;
   userId: string;
-  /** The project, with at least its client id (used to scope context + tools). */
-  project: Project & { client: Pick<Client, "id"> };
+  /** The project, with at least its client id (used to scope context + tools).
+   *  Null for workspace-level automation runs that aren't tied to a project. */
+  project?: (Project & { client: Pick<Client, "id"> }) | null;
   agent: Pick<
     WorkspaceAgent,
     "id" | "instructions" | "allowed_tools" | "model" | "max_steps" | "name"
@@ -47,8 +48,12 @@ export async function runAgentHeadless(params: {
   task?: string;
   /** Extra system-prompt guidance appended last (e.g. Slack delivery rules). */
   extraSystem?: string;
+  /** Set for Automation Hub runs — records the run against the automation
+   *  (workspace_agent_id is left null) instead of a workspace agent. */
+  workspaceAutomationId?: string;
 }): Promise<HeadlessRunResult> {
-  const { workspaceId, userId, project, agent } = params;
+  const { workspaceId, userId, agent, workspaceAutomationId } = params;
+  const project = params.project ?? null;
 
   const resolved = await resolveRunProviders(workspaceId);
   const primary = resolved.providers[0];
@@ -85,8 +90,9 @@ export async function runAgentHeadless(params: {
   const { data: run } = await db()
     .from("agent_runs")
     .insert({
-      project_id: project.id,
-      workspace_agent_id: agent.id,
+      project_id: project?.id ?? null,
+      workspace_agent_id: workspaceAutomationId ? null : agent.id,
+      workspace_automation_id: workspaceAutomationId ?? null,
       conversation_id: crypto.randomUUID(),
       status: "running",
       task: params.task?.trim() || null,
@@ -100,8 +106,8 @@ export async function runAgentHeadless(params: {
 
   const ctx: ToolContext = {
     workspaceId,
-    projectId: project.id,
-    clientId: project.client.id,
+    projectId: project?.id ?? "",
+    clientId: project?.client.id ?? "",
     userId,
     ...connectorTokens,
     firecrawlKey: env.firecrawlApiKey || null,
@@ -109,20 +115,23 @@ export async function runAgentHeadless(params: {
   };
 
   // Assemble the same project/KB + personal context the interactive route uses.
+  // Skipped for workspace-level automation runs that have no project.
   let systemPrompt = agent.instructions;
-  try {
-    // assembleContext only reads project.id + project.client.id; a partial
-    // client (from the cron) is sufficient.
-    const assembled = await assembleContext(
-      workspaceId,
-      project as Project & { client: Client },
-      [],
-      "",
-    );
-    const block = contextBlock(assembled);
-    if (block) systemPrompt = `${systemPrompt}\n\n${block}`;
-  } catch (err) {
-    console.warn("Headless context assembly failed:", err);
+  if (project) {
+    try {
+      // assembleContext only reads project.id + project.client.id; a partial
+      // client (from the cron) is sufficient.
+      const assembled = await assembleContext(
+        workspaceId,
+        project as Project & { client: Client },
+        [],
+        "",
+      );
+      const block = contextBlock(assembled);
+      if (block) systemPrompt = `${systemPrompt}\n\n${block}`;
+    } catch (err) {
+      console.warn("Headless context assembly failed:", err);
+    }
   }
   try {
     const prefs = await getUserPreferences(workspaceId, userId);

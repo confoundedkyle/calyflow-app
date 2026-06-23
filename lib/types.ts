@@ -388,6 +388,97 @@ export interface AgentRun {
   archived_at: string | null;
 }
 
+// --- Automation Hub ---
+
+export type AutomationScheduleKind = "daily" | "weekly" | "hourly";
+
+export interface AutomationSchedule {
+  kind: AutomationScheduleKind;
+  /** "HH:MM" (24h, UTC) — used for kind="daily" and "weekly". */
+  time?: string;
+}
+
+/** A connector category an automation needs the user to bind a provider for. */
+export interface RequiredConnector {
+  category: ConnectorCategoryName;
+  /** Short label for the binding UI + the "ATS → Enrichment" subtitle. */
+  label: string;
+}
+
+/** category → provider slug, e.g. { ats: "vincere", tool: "apollo" }. */
+export type ConnectorBindings = Record<string, string>;
+
+/** Mirror of lib/connectors.ts ConnectorCategory (kept here to avoid a
+ *  server-only import leaking into shared type usage). */
+export type ConnectorCategoryName =
+  | "ats"
+  | "crm"
+  | "data"
+  | "email"
+  | "comms"
+  | "tool";
+
+export type AutomationStatus = "healthy" | "failed" | "running";
+
+export interface LibraryAutomation {
+  id: string;
+  slug: string;
+  name: string;
+  description: string;
+  summary: string | null;
+  instructions: string;
+  allowed_tools: string[];
+  model: string | null;
+  max_steps: number;
+  required_connectors: RequiredConnector[];
+  default_schedule: AutomationSchedule | null;
+  task: string | null;
+  version: number;
+  featured: boolean;
+  og_description: string | null;
+  lead: string | null;
+  long_description: string | null;
+}
+
+export interface WorkspaceAutomation {
+  id: string;
+  workspace_id: string;
+  library_automation_id: string | null;
+  name: string;
+  instructions: string;
+  allowed_tools: string[];
+  model: string | null;
+  max_steps: number;
+  imported_version: number | null;
+  connector_bindings: ConnectorBindings;
+  schedule: AutomationSchedule | null;
+  enabled: boolean;
+  status: AutomationStatus;
+  last_run_at: string | null;
+  next_run_at: string | null;
+  created_by: string | null;
+  created_at: string;
+  archived_at: string | null;
+}
+
+/** A workspace automation enriched for the Hub table: its library row, latest
+ *  run, and the statuses of its last few runs (the RECENT squares). */
+export interface AutomationWithRuns extends WorkspaceAutomation {
+  library: LibraryAutomation | null;
+  lastRun: Pick<
+    AgentRun,
+    "status" | "created_at" | "output_text" | "error_message"
+  > | null;
+  recentStatuses: AgentRun["status"][];
+}
+
+export interface AutomationStats {
+  activeCount: number;
+  runsToday: number;
+  successPct: number | null;
+  needsAttention: { count: number; firstName: string | null };
+}
+
 /** One turn of a resumable agent chat (a slim agent_runs projection). */
 export interface AgentChatTurn {
   id: string;
