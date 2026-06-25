@@ -1,13 +1,16 @@
 import "server-only";
+import type { ConnectorAdapter } from "./types";
 
 // Firecrawl (https://firecrawl.dev). Auth is an API key sent as a Bearer
-// header. Used by the client "import from domain" researcher: discover a
-// site's pages (map) and read a page as clean markdown (scrape).
+// header. Powers the web_search / web_scrape agent tools and the client
+// "import from domain" researcher: discover a site's pages (map) and read a
+// page as clean markdown (scrape).
 //
-// Unlike the recruiting connectors this is NOT a workspace connection — the
-// key comes from the FIRECRAWL_API_KEY env var (env.firecrawlApiKey) and is
-// shared platform-wide, so there's no adapter/registry entry. Each function
-// takes the key explicitly to keep it a pure helper.
+// It is BOTH a workspace connector (the `firecrawlAdapter` below — a recruiter
+// can paste their own key in Settings) AND a platform fallback (the shared
+// FIRECRAWL_API_KEY env var). resolveFirecrawlKey (connector-tokens.ts) prefers
+// the workspace key and falls back to env. Each function takes the key
+// explicitly to keep it a pure helper.
 const API = "https://api.firecrawl.dev/v2";
 
 const MAP_TIMEOUT_MS = 60_000;
@@ -153,4 +156,25 @@ type RawSearchHit = {
   url?: string | null;
   title?: string | null;
   description?: string | null;
+};
+
+// Workspace connector: a recruiter can paste their own Firecrawl key in
+// Settings → Connectors instead of relying on the shared platform key. We
+// validate the key with a minimal 1-result search (an invalid key returns a
+// 401/402 from the API, which firecrawlSearch surfaces as a thrown error).
+export const firecrawlAdapter: ConnectorAdapter = {
+  provider: "firecrawl",
+  authType: "apikey",
+
+  async validateApiKey(apiKey) {
+    try {
+      await firecrawlSearch(apiKey, { query: "calyflow", limit: 1 });
+      return { ok: true, accountLabel: "Firecrawl" };
+    } catch (error) {
+      return {
+        ok: false,
+        message: error instanceof Error ? error.message : "Validation failed",
+      };
+    }
+  },
 };

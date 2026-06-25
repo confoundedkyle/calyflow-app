@@ -12,7 +12,7 @@ import {
 import { CONNECTOR_REQUIREMENT_PREFIX } from "../connectors";
 import type { Client, Project, WorkspaceAgent } from "../types";
 import { buildTools, type ToolContext } from "./tools";
-import { resolveConnectorTokens } from "./connector-tokens";
+import { resolveConnectorTokens, resolveFirecrawlKey } from "./connector-tokens";
 import { contextBlock, personalBlock } from "./prompt";
 
 export interface HeadlessRunResult {
@@ -110,7 +110,7 @@ export async function runAgentHeadless(params: {
     clientId: project?.client.id ?? "",
     userId,
     ...connectorTokens,
-    firecrawlKey: env.firecrawlApiKey || null,
+    firecrawlKey: await resolveFirecrawlKey(workspaceId),
     createdDocIds: [],
   };
 

@@ -843,6 +843,65 @@ export async function getActiveSourcingPlanConversation(
   return { conversationId: convId, turns };
 }
 
+/** The project's single active qualification-criteria document, or null. One
+ *  active per project; regenerating archives the previous one. */
+export async function getActiveQualification(
+  workspaceId: string,
+  projectId: string,
+): Promise<Doc | null> {
+  const { data } = await db()
+    .from("documents")
+    .select("*")
+    .eq("workspace_id", workspaceId)
+    .eq("scope_type", "project")
+    .eq("scope_id", projectId)
+    .eq("doc_type", "qualification")
+    .eq("is_active", true)
+    .order("created_at", { ascending: false })
+    .limit(1)
+    .maybeSingle();
+  return (data as Doc | null) ?? null;
+}
+
+/** The qualification generate/revise chat for a project, turns oldest-first.
+ *  Mirrors getActiveSourcingPlanConversation but reads qualification_runs. */
+export async function getActiveQualificationConversation(
+  workspaceId: string,
+  projectId: string,
+  conversationId?: string | null,
+): Promise<{ conversationId: string; turns: AgentChatTurn[] } | null> {
+  const project = await getProject(workspaceId, projectId);
+  if (!project) return null;
+
+  let convId =
+    conversationId && UUID_RE.test(conversationId) ? conversationId : null;
+  if (!convId) {
+    const { data: latest } = await db()
+      .from("qualification_runs")
+      .select("conversation_id")
+      .eq("project_id", projectId)
+      .not("conversation_id", "is", null)
+      .order("created_at", { ascending: false })
+      .limit(1)
+      .maybeSingle();
+    convId = (latest?.conversation_id as string | null) ?? null;
+  }
+  if (!convId) return null;
+
+  const { data, error } = await db()
+    .from("qualification_runs")
+    .select(
+      "id, task, output_text, steps, output_doc_id, status, error_message, created_at",
+    )
+    .eq("project_id", projectId)
+    .eq("conversation_id", convId)
+    .order("created_at", { ascending: true });
+  if (error) throw error;
+  const turns = (data ?? []) as AgentChatTurn[];
+  if (turns.length === 0 && !conversationId) return null;
+  return { conversationId: convId, turns };
+}
+
 export async function listRecentAgentRuns(
   workspaceId: string,
   limit = 8,

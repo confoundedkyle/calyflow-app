@@ -11,10 +11,13 @@ their **projects** (a role being filled for a client). Next.js app + Supabase.
   (snapshot at import; `imported_version`, `archived_at`, `library_*_id` link).
 - `documents` — scoped to `workspace` | `client` | `project`, typed by
   `doc_type` (`jd`, `intake_notes`, `scorecard`, `cv`, `other`, `output`,
-  `sourcing_plan`). `output` = agent-created; `sourcing_plan` = the project's
-  Plan-mode draft. `is_active` gates whether the AI sees a doc.
-- `agent_runs` / `workflow_runs` — run history (status, steps, tokens, cost,
-  `output_doc_id`).
+  `sourcing_plan`, `qualification`). `output` = agent-created; `sourcing_plan` =
+  the project's Plan-mode draft; `qualification` = the project's candidate-scoring
+  criteria. `is_active` gates whether the AI sees a doc.
+- `candidates` — per-project sourced candidates (standardized columns + a `raw`
+  JSONB for ad-hoc per-source fields). Written by the Shortlist Sourcing Agent.
+- `agent_runs` / `workflow_runs` / `shortlist_runs` / `qualification_runs` — run
+  history (status, steps, tokens, cost, `output_doc_id`).
 
 ## Agents are the primary primitive
 Workflows were folded into agents (the `workflows/` catalog is retired; the DB
@@ -83,6 +86,39 @@ library instructions into the copy. A library row retired from YAML orphans copi
   (`lib/sourcing-plan/progress.ts`, `appendProgressEntry`). Since the plan is
   auto-injected into every run, the next agent sees what's already done. The log
   lives on the plan doc, so regenerating starts a fresh plan + log (old archived).
+- **Project → Qualification tab** (`/clients/[c]/projects/[p]/qualification`):
+  the same two-column doc+agent surface as the Sourcing Plan (they share
+  `DocAgentPanel`; the page-specific wrappers `SourcingPlanPanel` /
+  `QualificationPanel` just pass copy + endpoint). A private-harness agent
+  (`lib/qualification/harness.ts`, key `qualification/harness.md`, env fallback
+  `QUALIFICATION_HARNESS`) writes **qualification criteria** — testable "test
+  cases" + a 0–100 scoring rubric built from the JD/intake — saved as the
+  project's single active `doc_type='qualification'` doc (`saveQualification`,
+  one-active idiom). Streaming route `/api/qualification/generate`; history in
+  `qualification_runs`. Editable inline or via chat, exactly like the plan.
+- **Project → Shortlist tab** (`/clients/[c]/projects/[p]/shortlist`): the
+  recruiter sets a **goal** (number of qualified candidates) and a **budget in
+  USD** (`projects.sourcing_goal_qualified` / `sourcing_budget_usd`, via
+  `setSourcingTargetsAction`) and pushes **Start/Continue sourcing**. That runs
+  the **main Sourcing Agent** — a private-harness agent (`lib/shortlist/harness.ts`,
+  key `shortlist/harness.md`, env `SHORTLIST_HARNESS`) with access to the FULL
+  enrichment/sourcing toolset (`SOURCING_AGENT_TOOLS` in `lib/agents/tools.ts` =
+  all data tools minus outreach/write). Unlike the GitHub/Coresignal sourcers it
+  picks tools per role. It runs **headless in the background** (`POST
+  /api/shortlist/run` inserts a `shortlist_runs` row then does the work in
+  `after()`, so the tab can close); the UI polls `GET /api/shortlist/run`. It
+  **scores each candidate 0–100 inline** against the active Qualification criteria
+  (auto-injected as project context) and saves via the `calyflow_save_candidate`
+  tool. **Candidates** live in the `candidates` table — standardized columns
+  (name/email/linkedin/source/score/qualified/status) **plus a `raw` JSONB** for
+  ad-hoc per-source fields (queryable; the TS stack's "pandas for JSON"), and the
+  raw payload is archived as JSON in the `documents` bucket under
+  `{ws}/project/{proj}/candidates/{id}.json` (`lib/candidates/save.ts`, dedupes by
+  email/linkedin via partial unique indexes; `calyflow_list_candidates` lets the
+  agent resume without duplicating). Stops at the goal (`countQualified ≥ goal`)
+  or step cap; the USD budget (`lib/shortlist/budget.ts`, no conversion — same
+  unit as run cost) gates between runs. On finish it appends a `## Progress log` line
+  to the Sourcing Plan, so re-running **continues where it left off**.
 - **Agents (top nav, `/workflows` route)**: workspace-level "My agents" manage list;
   each card → agent edit page (`/agents/[agentId]`: name + instructions, archive,
   upgrade, delete).

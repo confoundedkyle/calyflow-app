@@ -59,12 +59,16 @@ export interface Project {
   report_frequency: ReportFrequency;
   /** Last time the reporter posted, to avoid double-sends in a window. */
   report_last_sent_at: string | null;
+  /** Shortlist goal: number of qualified candidates to source toward. */
+  sourcing_goal_qualified: number | null;
+  /** Shortlist budget in USD (same unit as AI run costs). */
+  sourcing_budget_usd: number | null;
   created_at: string;
 }
 
 export type DocScope = "workspace" | "client" | "project" | "prospect";
 export type DocKind = "kb" | "file";
-export type DocType = "jd" | "intake_notes" | "cv" | "scorecard" | "note" | "output" | "other" | "sourcing_plan";
+export type DocType = "jd" | "intake_notes" | "cv" | "scorecard" | "note" | "output" | "other" | "sourcing_plan" | "qualification";
 
 export interface Doc {
   id: string;
@@ -386,6 +390,49 @@ export interface AgentRun {
   created_at: string;
   /** Set when a user archives the run (soft-hidden, kept for cost tracking). */
   archived_at: string | null;
+}
+
+// --- Shortlist (candidates) ---
+
+export type CandidateStatus = "sourced" | "qualified" | "rejected";
+
+/** A sourced candidate. Standardized columns power the list/goal/dedupe; `raw`
+ *  holds whatever ad-hoc fields the data source returned (queryable JSONB). */
+export interface Candidate {
+  id: string;
+  workspace_id: string;
+  project_id: string;
+  source: string | null;
+  name: string | null;
+  email: string | null;
+  linkedin: string | null;
+  score: number | null;
+  qualified: boolean;
+  status: CandidateStatus;
+  raw: Record<string, unknown>;
+  storage_path: string | null;
+  created_by: string | null;
+  created_at: string;
+}
+
+/** One Shortlist sourcing run (Start/Continue click). */
+export interface ShortlistRun {
+  id: string;
+  project_id: string;
+  status: "running" | "succeeded" | "failed";
+  steps: AgentRunStep[] | null;
+  output_text: string | null;
+  error_message: string | null;
+  provider: string | null;
+  model: string | null;
+  input_tokens: number | null;
+  output_tokens: number | null;
+  cache_read_tokens: number | null;
+  cost_usd: number | null;
+  candidates_added: number | null;
+  qualified_after: number | null;
+  created_by: string | null;
+  created_at: string;
 }
 
 // --- Automation Hub ---

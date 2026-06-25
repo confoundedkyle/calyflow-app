@@ -198,6 +198,17 @@ export const env = {
   get sourcingPlanHarness() {
     return process.env.SOURCING_PLAN_HARNESS ?? "";
   },
+  /** Optional self-host fallback for the Shortlist (main Sourcing Agent) harness.
+   *  Normally pulled from the private `system-config` bucket. See
+   *  lib/shortlist/harness.ts. */
+  get shortlistHarness() {
+    return process.env.SHORTLIST_HARNESS ?? "";
+  },
+  /** Optional self-host fallback for the Qualification criteria harness.
+   *  See lib/qualification/harness.ts. */
+  get qualificationHarness() {
+    return process.env.QUALIFICATION_HARNESS ?? "";
+  },
 };
 
 function required(name: string): string {

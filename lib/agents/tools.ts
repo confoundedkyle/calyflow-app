@@ -4,6 +4,8 @@ import { z } from "zod";
 import { db } from "../db";
 import { listDocuments, getDocument } from "../queries";
 import { appendProgressEntry } from "../sourcing-plan/progress";
+import { saveCandidate } from "../candidates/save";
+import { listCandidatesCompact } from "../candidates/queries";
 import { adzunaAdapter } from "../integrations/adzuna";
 import { affinityAdapter } from "../integrations/affinity";
 import { aircallAdapter } from "../integrations/aircall";
@@ -114,6 +116,10 @@ export interface ToolContext extends ConnectorTokens {
   firecrawlKey: string | null;
   /** Documents the agent created this run (mutated by calyflow_create_document). */
   createdDocIds: string[];
+  /** Candidates saved this run (mutated by calyflow_save_candidate). Lets the
+   *  Shortlist run loop track progress toward the goal. Optional: only the
+   *  Sourcing Agent provides it. */
+  savedCandidateIds?: string[];
 }
 
 const READ_DOC_CHAR_CAP = 8_000;
@@ -533,7 +539,7 @@ function buildAll(ctx: ToolContext): ToolSet {
       }),
       execute: async (args) => {
         if (!ctx.firecrawlKey)
-          return { error: "Web search is unavailable — FIRECRAWL_API_KEY is not configured." };
+          return { error: "Web search is unavailable — connect Firecrawl in Settings → Connectors (or set FIRECRAWL_API_KEY)." };
         const { results } = await firecrawlSearch(ctx.firecrawlKey, args);
         if (results.length === 0) return { text: "_No results._", count: 0 };
         return {
@@ -553,7 +559,7 @@ function buildAll(ctx: ToolContext): ToolSet {
       }),
       execute: async ({ url }) => {
         if (!ctx.firecrawlKey)
-          return { error: "Web scrape is unavailable — FIRECRAWL_API_KEY is not configured." };
+          return { error: "Web scrape is unavailable — connect Firecrawl in Settings → Connectors (or set FIRECRAWL_API_KEY)." };
         const r = await firecrawlScrape(ctx.firecrawlKey, { url });
         return { text: r.markdown || "_Empty page._", title: r.title, truncated: r.truncated };
       },
@@ -3667,6 +3673,92 @@ function buildAll(ctx: ToolContext): ToolSet {
         return { logged: true, date: dateLabel };
       },
     }),
+    calyflow_save_candidate: tool({
+      description:
+        "Save (or update) a sourced candidate to this project's shortlist. " +
+        "Dedupes by email/linkedin within the project — call it once per " +
+        "candidate. Put standardized identity in name/email/linkedin/source, the " +
+        "0-100 fit score in `score`, whether they meet the qualification criteria " +
+        "in `qualified`, and ANY other source-specific details (title, company, " +
+        "location, profile URLs, evidence, …) in `fields`.",
+      inputSchema: z.object({
+        name: z.string().describe("Candidate full name.").optional(),
+        email: z.string().describe("Best contact email, if found.").optional(),
+        linkedin: z
+          .string()
+          .describe("LinkedIn profile URL, if found.")
+          .optional(),
+        source: z
+          .string()
+          .describe("Data source this came from, e.g. coresignal, github, apollo.")
+          .optional(),
+        score: z
+          .number()
+          .min(0)
+          .max(100)
+          .describe("Fit score 0-100 against the qualification criteria.")
+          .optional(),
+        qualified: z
+          .boolean()
+          .describe(
+            "True if the candidate meets the qualification bar. Omit to derive from score.",
+          )
+          .optional(),
+        status: z
+          .enum(["sourced", "qualified", "rejected"])
+          .describe("Pipeline status. Omit to derive from `qualified`.")
+          .optional(),
+        fields: z
+          .record(z.string(), z.unknown())
+          .describe("Ad-hoc per-source fields (title, company, location, …).")
+          .optional(),
+      }),
+      execute: async (args) => {
+        try {
+          const result = await saveCandidate({
+            workspaceId: ctx.workspaceId,
+            projectId: ctx.projectId,
+            userId: ctx.userId,
+            name: args.name ?? null,
+            email: args.email ?? null,
+            linkedin: args.linkedin ?? null,
+            source: args.source ?? null,
+            score: args.score ?? null,
+            qualified: args.qualified ?? null,
+            status: args.status ?? null,
+            fields: args.fields ?? null,
+          });
+          if (ctx.savedCandidateIds && !result.deduped) {
+            ctx.savedCandidateIds.push(result.id);
+          }
+          return {
+            candidateId: result.id,
+            deduped: result.deduped,
+            qualified: result.qualified,
+          };
+        } catch (err) {
+          return {
+            error:
+              err instanceof Error ? err.message : "Could not save the candidate.",
+          };
+        }
+      },
+    }),
+    calyflow_list_candidates: tool({
+      description:
+        "List candidates already saved to this project's shortlist (name, email, " +
+        "linkedin, score, qualified). Use it to avoid re-sourcing people you " +
+        "already have and to continue toward the goal where a previous run left off.",
+      inputSchema: z.object({}),
+      execute: async () => {
+        const rows = await listCandidatesCompact(ctx.projectId);
+        return {
+          count: rows.length,
+          qualified: rows.filter((r) => r.qualified).length,
+          candidates: rows,
+        };
+      },
+    }),
   };
 }
 
@@ -3903,4 +3995,30 @@ export const ALL_TOOL_NAMES = [
   "zoom_get_transcript",
   "calyflow_create_document",
   "calyflow_log_sourcing_progress",
+  "calyflow_save_candidate",
+  "calyflow_list_candidates",
 ] as const;
+
+// Outreach / write tools the main Sourcing Agent must NOT use — it sources and
+// scores, it does not contact anyone or mutate connected systems.
+const SOURCING_AGENT_TOOL_DENYLIST = new Set<string>([
+  "gmail_send_email",
+  "outlook_send_email",
+  "slack_post_message",
+  "instantly_add_lead",
+  "lemlist_add_lead",
+  "calyflow_create_document",
+  // The Shortlist run loop appends the progress-log line itself on finish, so
+  // the agent must not also log (would double-write).
+  "calyflow_log_sourcing_progress",
+]);
+
+/**
+ * The full tool set for the main Sourcing Agent (Shortlist): every data /
+ * enrichment / read tool, plus the candidate-store and progress tools, minus the
+ * outreach/write tools. Unconnected providers resolve to null tokens and their
+ * tools self-report "not connected", so this is safe to grant wholesale.
+ */
+export const SOURCING_AGENT_TOOLS: string[] = ALL_TOOL_NAMES.filter(
+  (name) => !SOURCING_AGENT_TOOL_DENYLIST.has(name),
+);

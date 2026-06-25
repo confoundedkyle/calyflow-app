@@ -117,7 +117,14 @@ function DocCategorySection({
           aria-expanded={isOpen}
           aria-controls={panelId}
           onClick={onToggle}
-          className="shrink-0 rounded-chip border border-navy-800/20 px-3 py-1 text-xs font-semibold text-navy-800/60 transition hover:border-mint-700 hover:text-mint-700"
+          className={[
+            "shrink-0 rounded-chip px-3 py-1 text-xs font-semibold transition",
+            isOpen
+              ? // Cancel stays a subtle outline so it doesn't read as the CTA.
+                "border border-navy-800/20 text-navy-800/60 hover:border-mint-700 hover:text-mint-700"
+              : // Add / Replace use the primary CTA fill so the action is obvious.
+                "bg-mint-400 text-navy-800 hover:brightness-105",
+          ].join(" ")}
         >
           {isOpen ? "Cancel" : multi || !filled ? "Add" : "Replace"}
         </button>

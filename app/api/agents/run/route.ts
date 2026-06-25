@@ -34,6 +34,7 @@ import {
 import { ALL_TOOL_NAMES, buildTools, type ToolContext } from "@/lib/agents/tools";
 import {
   resolveConnectorTokens,
+  resolveFirecrawlKey,
   type ConnectorTokens,
 } from "@/lib/agents/connector-tokens";
 import { contextBlock, personalBlock } from "@/lib/agents/prompt";
@@ -276,7 +277,7 @@ export async function POST(request: NextRequest) {
     clientId: project.client.id,
     userId: session.userId,
     ...connectorTokens,
-    firecrawlKey: env.firecrawlApiKey || null,
+    firecrawlKey: await resolveFirecrawlKey(session.workspaceId),
     createdDocIds: [],
   };
 

@@ -9,14 +9,11 @@ import {
   getLanguageModel,
   resolveRunProviders,
 } from "@/lib/providers";
-import { connectorLabel } from "@/lib/connectors";
 import {
-  getActiveSourcingPlan,
+  getActiveQualification,
   getProject,
   getUserPreferences,
-  listConnections,
 } from "@/lib/queries";
-import { connectedProvidersFrom } from "@/lib/run-items";
 import { assembleContext } from "@/lib/context";
 import {
   parseEffort,
@@ -32,26 +29,19 @@ import {
 } from "@/lib/agents/connector-tokens";
 import { contextBlock, personalBlock } from "@/lib/agents/prompt";
 import {
-  loadSourcingPlanHarness,
+  loadQualificationHarness,
   HarnessNotProvisionedError,
-} from "@/lib/sourcing-plan/harness";
-import { saveSourcingPlan } from "@/lib/sourcing-plan/save";
+} from "@/lib/qualification/harness";
+import { saveQualification } from "@/lib/qualification/save";
 import type { AgentRunStep } from "@/lib/types";
 
-export const maxDuration = 600; // research + multi-step tool loops can run long
+export const maxDuration = 600;
 
-// Plan mode researches the landscape, so give it room to use its tools.
-const PLAN_BASE_STEPS = 18;
+const BASE_STEPS = 14;
 
-// Tools the plan agent may use: research the web + read the knowledge base.
-// It deliberately does NOT get calyflow_create_document — the platform saves
-// the plan itself (one canonical sourcing_plan doc per project).
-const PLAN_TOOLS = [
-  "calyflow_search_documents",
-  "calyflow_read_document",
-  "web_search",
-  "web_scrape",
-];
+// The criteria are written from the JD/intake + light web research; the platform
+// saves the doc itself (one canonical qualification doc per project).
+const TOOLS = ["calyflow_search_documents", "calyflow_read_document", "web_search"];
 
 function ndjson(obj: unknown): Uint8Array {
   return new TextEncoder().encode(`${JSON.stringify(obj)}\n`);
@@ -67,25 +57,6 @@ function summarize(value: unknown): string {
   return s.length > 300 ? `${s.slice(0, 300)}…` : s;
 }
 
-/** A block naming the workspace's active connectors, so the plan recommends
- *  channels the recruiter can actually action. */
-function connectorsBlock(providers: string[]): string {
-  if (providers.length === 0) {
-    return (
-      "# Active connectors\nThis workspace has no data-source connectors " +
-      "connected yet. Recommend channels that need no connector, and call out " +
-      "where connecting a tool (ATS, sourcing, email) would unlock more."
-    );
-  }
-  const lines = providers.map((p) => `- ${connectorLabel(p)}`).join("\n");
-  return (
-    "# Active connectors\nThe workspace can action these connected data sources " +
-    "— prioritise channels and steps the recruiter can execute with them, and " +
-    "flag valuable options that need a connector they don't have:\n" +
-    lines
-  );
-}
-
 export async function POST(request: NextRequest) {
   const session = await getSession();
   if (!session) {
@@ -93,7 +64,6 @@ export async function POST(request: NextRequest) {
   }
   const body = await request.json().catch(() => null);
   const projectId = String(body?.projectId ?? "");
-  // A revision instruction; empty = generate a fresh plan.
   const task = typeof body?.task === "string" ? body.task.trim() : "";
   const effort = parseEffort(body?.effort);
 
@@ -138,16 +108,15 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: platformGate.message }, { status: 402 });
   }
 
-  // The private harness (IP) is the base system prompt. Missing → clear error.
   let harness: string;
   try {
-    harness = await loadSourcingPlanHarness();
+    harness = await loadQualificationHarness();
   } catch (err) {
     if (err instanceof HarnessNotProvisionedError) {
       return NextResponse.json({ error: err.message }, { status: 503 });
     }
     return NextResponse.json(
-      { error: "Could not load the sourcing-plan configuration." },
+      { error: "Could not load the qualification configuration." },
       { status: 500 },
     );
   }
@@ -155,9 +124,8 @@ export async function POST(request: NextRequest) {
   const provider = env.mockAi ? "calyflow" : primary.row.provider;
   const model = env.mockAi ? "mock-model" : primary.model;
 
-  // Open the run row up front so the trace is recorded even on failure.
   const { data: run, error: runInsertError } = await db()
-    .from("sourcing_plan_runs")
+    .from("qualification_runs")
     .insert({
       project_id: projectId,
       conversation_id: conversationId,
@@ -170,29 +138,19 @@ export async function POST(request: NextRequest) {
     .select("id")
     .single();
   if (runInsertError || !run) {
-    console.error("Sourcing plan: run insert failed", runInsertError);
+    console.error("Qualification: run insert failed", runInsertError);
     return NextResponse.json({ error: "Could not start run" }, { status: 500 });
   }
   const runId = run.id as string;
 
-  // Assemble the system prompt: harness (IP) + active connectors + project
-  // context (JD, KB, files) + recruiter details + effort guidance.
   let systemPrompt = harness;
-
-  try {
-    const connections = await listConnections(session.workspaceId);
-    const providers = [...connectedProvidersFrom(connections)];
-    systemPrompt = `${systemPrompt}\n\n${connectorsBlock(providers)}`;
-  } catch (err) {
-    console.warn("Sourcing plan: connectors block failed:", err);
-  }
 
   try {
     const assembled = await assembleContext(session.workspaceId, project, [], "");
     const block = contextBlock(assembled);
     if (block) systemPrompt = `${systemPrompt}\n\n${block}`;
   } catch (err) {
-    console.warn("Sourcing plan: context assembly failed:", err);
+    console.warn("Qualification: context assembly failed:", err);
   }
 
   try {
@@ -200,34 +158,31 @@ export async function POST(request: NextRequest) {
     const block = personalBlock(prefs);
     if (block) systemPrompt = `${systemPrompt}\n\n${block}`;
   } catch (err) {
-    console.warn("Sourcing plan: personal preferences load failed:", err);
+    console.warn("Qualification: personal preferences load failed:", err);
   }
 
   systemPrompt = `${systemPrompt}\n\n${effortGuidance(effort)}`;
 
-  // Build the user message. A revision carries the current plan so the model
-  // returns the full revised markdown; a fresh generation just asks for a draft.
-  const currentPlan = await getActiveSourcingPlan(session.workspaceId, projectId);
+  const current = await getActiveQualification(session.workspaceId, projectId);
   let userPrompt: string;
   if (task) {
     userPrompt =
-      `Revise the sourcing plan per this instruction:\n\n${task}\n\n` +
-      "Return the COMPLETE revised plan in markdown, preserving everything not " +
-      "asked to change.";
-    if (currentPlan?.extracted_text?.trim()) {
-      userPrompt += `\n\n# Current plan\n${currentPlan.extracted_text.trim()}`;
+      `Revise the qualification criteria per this instruction:\n\n${task}\n\n` +
+      "Return the COMPLETE revised criteria in markdown, preserving everything " +
+      "not asked to change.";
+    if (current?.extracted_text?.trim()) {
+      userPrompt += `\n\n# Current criteria\n${current.extracted_text.trim()}`;
     }
   } else {
     userPrompt =
-      "Research the landscape and draft the complete sourcing plan for this " +
-      "project, following your output contract exactly.";
+      "Draft the complete qualification criteria for this role, following your " +
+      "output contract exactly.";
   }
 
-  // Thread the earlier turns of this conversation back as context.
   const priorMessages: { role: "user" | "assistant"; content: string }[] = [];
   if (continuingId) {
     const { data: prior } = await db()
-      .from("sourcing_plan_runs")
+      .from("qualification_runs")
       .select("task, output_text, created_at")
       .eq("project_id", projectId)
       .eq("conversation_id", conversationId)
@@ -236,7 +191,7 @@ export async function POST(request: NextRequest) {
     for (const turn of prior ?? []) {
       priorMessages.push({
         role: "user",
-        content: (turn.task as string | null)?.trim() || "(generate the plan)",
+        content: (turn.task as string | null)?.trim() || "(generate the criteria)",
       });
       const out = (turn.output_text as string | null)?.trim();
       if (out) priorMessages.push({ role: "assistant", content: out });
@@ -247,8 +202,6 @@ export async function POST(request: NextRequest) {
     { role: "user" as const, content: userPrompt },
   ];
 
-  // The plan agent is research-only (no connector tools), so all connector
-  // tokens resolve to null — resolveConnectorTokens([]) gives the full shape.
   const ctx: ToolContext = {
     workspaceId: session.workspaceId,
     projectId,
@@ -274,9 +227,8 @@ export async function POST(request: NextRequest) {
       try {
         if (env.mockAi) {
           outputText =
-            `# Sourcing Plan: ${project.name} (mock)\n\n` +
-            "**Mock run** (MOCK_AI=true): no provider or tools were called.\n\n" +
-            "## 7. What we DON'T do\n- Mock entry.";
+            `# Qualification criteria: ${project.name} (mock)\n\n` +
+            "**Mock run** (MOCK_AI=true): no provider or tools were called.";
           controller.enqueue(ndjson({ type: "text", value: outputText }));
           usage = { inputTokens: 500, outputTokens: 80, cachedInputTokens: 0 };
         } else {
@@ -285,7 +237,7 @@ export async function POST(request: NextRequest) {
             primary.apiKey,
             model,
           );
-          const tools = buildTools(ctx, PLAN_TOOLS);
+          const tools = buildTools(ctx, TOOLS);
           const effectiveProvider =
             provider === "calyflow" ? env.platformProvider : provider;
           const tuning = effortModelTuning(effort, effectiveProvider, model);
@@ -295,7 +247,7 @@ export async function POST(request: NextRequest) {
             system: systemPrompt,
             messages,
             tools,
-            stopWhen: stepCountIs(effortMaxSteps(PLAN_BASE_STEPS, effort)),
+            stopWhen: stepCountIs(effortMaxSteps(BASE_STEPS, effort)),
             abortSignal: AbortSignal.timeout(540_000),
             providerOptions: tuning.providerOptions as Parameters<
               typeof streamText
@@ -366,9 +318,8 @@ export async function POST(request: NextRequest) {
               .cachedInputTokens,
           };
 
-          // If research ate the step budget before the model wrote the plan,
-          // don't throw the research away — feed it back and force a tool-free
-          // write so the plan still gets produced.
+          // If research ate the step budget before the model wrote the criteria,
+          // feed it back and force a tool-free write so they still get produced.
           if (
             !outputText.trim() &&
             (finishReason === "tool-calls" || finishReason === "length")
@@ -380,9 +331,10 @@ export async function POST(request: NextRequest) {
                 system: systemPrompt,
                 priorMessages: [...messages, ...prior.messages],
                 nudge:
-                  "You've gathered enough research. Now write the COMPLETE " +
-                  "sourcing plan in markdown, following your output contract " +
-                  "exactly. Do not call any tools — just produce the full plan.",
+                  "You've gathered enough context. Now write the COMPLETE " +
+                  "qualification criteria in markdown, following your output " +
+                  "contract exactly. Do not call any tools — just produce the " +
+                  "full criteria.",
                 onDelta: (t) =>
                   controller.enqueue(ndjson({ type: "text", value: t })),
               });
@@ -397,13 +349,13 @@ export async function POST(request: NextRequest) {
                   (fin.usage.cachedInputTokens ?? 0),
               };
             } catch (err) {
-              console.warn("Sourcing plan: finalize write failed:", err);
+              console.warn("Qualification: finalize write failed:", err);
             }
           }
         }
       } catch (error) {
         failure =
-          error instanceof Error ? error.message : "Sourcing plan run failed";
+          error instanceof Error ? error.message : "Qualification run failed";
       }
 
       const succeeded = failure === null;
@@ -411,24 +363,23 @@ export async function POST(request: NextRequest) {
       if (succeeded && !outputText.trim()) {
         outputText =
           finishReason === "tool-calls" || finishReason === "length"
-            ? "I gathered a lot of research but ran out of room before writing the plan. Run me again — narrowing the request helps me wrap up faster."
-            : "I wasn't able to put together a plan this time. Mind running it again, or rephrasing the request a little?";
+            ? "I gathered the context but ran out of room before writing the criteria. Run me again — narrowing the request helps."
+            : "I wasn't able to put together the criteria this time. Mind running it again, or rephrasing the request a little?";
         controller.enqueue(ndjson({ type: "text", value: outputText }));
       }
 
-      // Save the plan as the project's single active sourcing_plan document.
       let outputDocId: string | null = null;
       if (succeeded && outputText.trim()) {
         try {
-          outputDocId = await saveSourcingPlan(
+          outputDocId = await saveQualification(
             session.workspaceId,
             projectId,
             session.userId,
             outputText,
           );
         } catch (err) {
-          console.error("Sourcing plan: save failed", err);
-          failure = "The plan was generated but couldn't be saved.";
+          console.error("Qualification: save failed", err);
+          failure = "The criteria were generated but couldn't be saved.";
         }
       }
 
@@ -438,7 +389,7 @@ export async function POST(request: NextRequest) {
 
       const finalSucceeded = failure === null;
       await db()
-        .from("sourcing_plan_runs")
+        .from("qualification_runs")
         .update({
           status: finalSucceeded ? "succeeded" : "failed",
           steps,

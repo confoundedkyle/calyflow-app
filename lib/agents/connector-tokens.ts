@@ -1,6 +1,8 @@
 import "server-only";
 import { getConnection } from "../queries";
 import { getValidAccessToken } from "../integrations";
+import { pickFirecrawlKey } from "../connectors";
+import { env } from "../env";
 
 // One valid access token per live connector, or null when the workspace hasn't
 // connected it. Shared by the interactive agent run route and the headless
@@ -206,6 +208,29 @@ const SPECS: TokenSpec[] = [
   { field: "zohoRecruitToken", prefix: "zohorecruit_", provider: "zoho-recruit" },
   { field: "zoomToken", prefix: "zoom_", provider: "zoom" },
 ];
+
+/**
+ * Resolve the Firecrawl key for the web_search / web_scrape tools (ToolContext
+ * .firecrawlKey). A workspace's own connected Firecrawl key wins (BYO); a broken
+ * connection or no connection falls back to the shared platform key (env). The
+ * web_* tools aren't provider-prefixed, so this is resolved on its own rather
+ * than through resolveConnectorTokens.
+ */
+export async function resolveFirecrawlKey(
+  workspaceId: string,
+): Promise<string | null> {
+  let workspaceToken: string | null = null;
+  const connection = await getConnection(workspaceId, "firecrawl");
+  if (connection) {
+    try {
+      workspaceToken = await getValidAccessToken(connection);
+    } catch {
+      // Broken/unreadable connection — fall back to the platform key.
+      workspaceToken = null;
+    }
+  }
+  return pickFirecrawlKey(workspaceToken, env.firecrawlApiKey);
+}
 
 /** All-null tokens — the base for a headless run that uses no connectors. */
 export function blankConnectorTokens(): ConnectorTokens {

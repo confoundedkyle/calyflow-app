@@ -29,6 +29,7 @@ import { dropcontactAdapter } from "./dropcontact";
 import { emailableAdapter } from "./emailable";
 import { fathomAdapter } from "./fathom";
 import { findymailAdapter } from "./findymail";
+import { firecrawlAdapter } from "./firecrawl";
 import { firefliesAdapter } from "./fireflies";
 import { folkAdapter } from "./folk";
 import { fullenrichAdapter } from "./fullenrich";
@@ -129,6 +130,7 @@ const ADAPTERS: Record<string, ConnectorAdapter> = {
   emailable: emailableAdapter,
   fathom: fathomAdapter,
   findymail: findymailAdapter,
+  firecrawl: firecrawlAdapter,
   fireflies: firefliesAdapter,
   folk: folkAdapter,
   fullenrich: fullenrichAdapter,

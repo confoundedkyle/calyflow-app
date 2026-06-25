@@ -118,6 +118,7 @@ export const CONNECTORS: Connector[] = [
   { name: "Emailable", category: "tool", blurb: "Verify email deliverability, with typo suggestions, before outreach.", provider: "emailable", live: true, auth: "apikey", apiKeyHint: "Copy your API key from the Emailable dashboard → API." },
   { name: "Fathom", category: "tool", blurb: "Read AI summaries and transcripts of your recorded calls.", provider: "fathom", live: true, auth: "apikey" },
   { name: "Findymail", category: "tool", blurb: "Find and verify B2B emails and mobile numbers for candidates and clients.", provider: "findymail", live: true, auth: "apikey", apiKeyHint: "Copy your API key from Findymail at app.findymail.com → API." },
+  { name: "Firecrawl", category: "tool", blurb: "Power the agents' web search and clean-markdown page scraping with your own key.", provider: "firecrawl", live: true, auth: "apikey", apiKeyHint: "Copy your API key from firecrawl.dev under Settings → API Keys (it starts with fc-)." },
   { name: "Fireflies.ai", category: "tool", blurb: "Search interview and client-call transcripts and summaries.", provider: "fireflies", live: true, auth: "apikey" },
   { name: "FullEnrich", category: "tool", blurb: "Find verified emails and mobile numbers through a 15+ vendor waterfall.", provider: "fullenrich", live: true, auth: "apikey", apiKeyHint: "Copy your API key from FullEnrich at app.fullenrich.com → API." },
   { name: "GitHub", category: "tool", blurb: "Source engineers from open-source repos — contributors, forkers, and commit-email contacts.", provider: "github", live: true, auth: "apikey", apiKeyHint: "Create a Personal Access Token at github.com → Settings → Developer settings → Personal access tokens (a classic token with the public_repo scope, or a fine-grained read-only token, is enough)." },
@@ -247,6 +248,17 @@ export function providerToolPrefix(provider: string): string {
   return exceptions[provider] ?? `${provider}_`;
 }
 
+/** Pick the Firecrawl key for the web_search / web_scrape tools: a workspace's
+ *  own connected key wins (BYO); otherwise fall back to the shared platform key
+ *  (env). Returns null when neither is available, so the tools can report it.
+ *  Pure so it's unit-testable; the async resolver lives in connector-tokens.ts. */
+export function pickFirecrawlKey(
+  workspaceToken: string | null,
+  envKey: string,
+): string | null {
+  return workspaceToken ?? (envKey || null);
+}
+
 /** Provider slug → primary web domain, used to render brand logos via a
  *  favicon service (no logo assets to maintain across the catalog). */
 export const CONNECTOR_DOMAINS: Record<string, string> = {
@@ -309,6 +321,7 @@ export const CONNECTOR_DOMAINS: Record<string, string> = {
   emailable: "emailable.com",
   fathom: "fathom.video",
   findymail: "findymail.com",
+  firecrawl: "firecrawl.dev",
   fireflies: "fireflies.ai",
   folk: "folk.app",
   fullenrich: "fullenrich.com",

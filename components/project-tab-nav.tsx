@@ -8,19 +8,28 @@ export function ProjectTabNav({ basePath }: { basePath: string }) {
   const isDocuments = pathname.startsWith(`${basePath}/documents`);
   const isSettings = pathname.startsWith(`${basePath}/settings`);
   const isSourcingPlan = pathname.startsWith(`${basePath}/sourcing-plan`);
+  const isShortlist = pathname.startsWith(`${basePath}/shortlist`);
+  const isQualification = pathname.startsWith(`${basePath}/qualification`);
+  const isAgents = pathname.startsWith(`${basePath}/agents`);
 
   const tabs = [
-    {
-      href: `${basePath}/agents`,
-      label: "Agents",
-      active: !isDocuments && !isSettings && !isSourcingPlan,
-    },
+    { href: `${basePath}/documents`, label: "Documents", active: isDocuments },
+    { href: `${basePath}/agents`, label: "Agents", active: isAgents },
     {
       href: `${basePath}/sourcing-plan`,
       label: "Sourcing Plan",
       active: isSourcingPlan,
     },
-    { href: `${basePath}/documents`, label: "Documents", active: isDocuments },
+    {
+      href: `${basePath}/qualification`,
+      label: "Qualification",
+      active: isQualification,
+    },
+    {
+      href: `${basePath}/shortlist`,
+      label: "Shortlist",
+      active: isShortlist,
+    },
     { href: `${basePath}/settings`, label: "Settings", active: isSettings },
   ];
 

@@ -1,11 +1,14 @@
 /**
- * Uploads the Sourcing Plan harness (the prompt/IP) to the private
- * `system-config` Storage bucket. Run once per environment — the harness is
- * deliberately NOT committed to the repo, so it lives in a file outside the git
- * tree (e.g. ./secrets/sourcing-plan-harness.md, which is .gitignored).
+ * Uploads a private harness (the prompt/IP) to the private `system-config`
+ * Storage bucket. Run once per environment — harnesses are deliberately NOT
+ * committed to the repo, so they live in files outside the git tree (e.g.
+ * ./secrets/*.md, which is .gitignored).
  *
  * Usage:
- *   node scripts/upload-harness.mjs ./secrets/sourcing-plan-harness.md
+ *   node scripts/upload-harness.mjs <path-to-harness.md> [object-key]
+ *
+ * object-key defaults to "sourcing-plan/harness.md" for back-compat. The other
+ * harnesses are "shortlist/harness.md" and "qualification/harness.md".
  *
  * Requires SUPABASE_URL and SUPABASE_SERVICE_ROLE_KEY (read from .env.local for
  * local runs, or the real environment in CI/prod).
@@ -17,11 +20,13 @@ import { createClient } from "@supabase/supabase-js";
 config({ path: ".env.local" });
 
 const BUCKET = "system-config";
-const OBJECT_KEY = "sourcing-plan/harness.md";
 
 const path = process.argv[2];
+const OBJECT_KEY = process.argv[3] ?? "sourcing-plan/harness.md";
 if (!path) {
-  console.error("Usage: node scripts/upload-harness.mjs <path-to-harness.md>");
+  console.error(
+    "Usage: node scripts/upload-harness.mjs <path-to-harness.md> [object-key]",
+  );
   process.exit(1);
 }
 
@@ -46,7 +51,7 @@ if (body.length === 0) {
 
 const db = createClient(url, key, { auth: { persistSession: false } });
 
-// The bucket is created by migration 0026; create it here too so the script
+// The bucket is created by migration 0027; create it here too so the script
 // works against a fresh DB before migrations, idempotently.
 await db.storage.createBucket(BUCKET, { public: false }).catch(() => {});
 
@@ -60,5 +65,5 @@ if (error) {
 
 console.log(
   `Uploaded ${body.length} bytes → ${BUCKET}/${OBJECT_KEY}. ` +
-    "The Sourcing Plan page will use it on the next generation.",
+    "It will be used on the next run (cached up to 5 min).",
 );
