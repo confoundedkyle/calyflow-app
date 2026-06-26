@@ -242,6 +242,33 @@ export const DOC_CONNECTORS: Record<string, ConnectorDocContent> = {
     ],
     links: [{ label: "Recruitis API docs", url: "https://docs.recruitis.io/api/" }],
   },
+  "jobin-cloud": {
+    capabilities: [
+      "Search your Jobin Cloud candidate database by role title, name, email, or LinkedIn URL",
+      "Read your outreach campaigns (sequences) with their status and contact counts",
+    ],
+    useCases: [
+      "Source candidates from your existing Jobin database for a live role instead of sourcing cold",
+      "Pull a candidate's current role, company, and contact details into a shortlist or screening run",
+      "Check whether someone is already in an outreach campaign before reaching out again",
+    ],
+    whatYouNeed: [
+      "A Jobin Cloud account that can create a custom-integration API key (Workgroups → Integrations)",
+    ],
+    steps: [
+      "In Jobin.cloud, open Workgroups → Integrations → Custom integration and create a key.",
+      "Copy the key, then in Calyflow go to Settings → Connectors → Jobin Cloud and paste it.",
+    ],
+    configuration: [
+      "Read-only: Calyflow searches your Jobin contacts/candidates and reads your campaigns on demand, and never writes back to Jobin Cloud.",
+    ],
+    links: [
+      {
+        label: "Jobin Cloud API docs",
+        url: "https://docs.jobin.cloud/api-reference/introduction",
+      },
+    ],
+  },
 
   // ── CRM ──────────────────────────────────────────────────────────────────
   affinity: {
