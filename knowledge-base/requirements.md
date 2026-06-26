@@ -125,6 +125,24 @@ library instructions into the copy. A library row retired from YAML orphans copi
   migration 0029). Future runs inject a `# Recruiter feedback` block
   (`lib/candidates/feedback.ts` + `listCandidateFeedback`) so the agent favours
   accepted profiles and avoids rejected patterns.
+- **Project → Outreach tab** (`/clients/[c]/projects/[p]/outreach`): drafts
+  personalized outreach **emails** to the candidates accepted in the Shortlist
+  (Fit ✓ with an email; falls back to qualified-with-email —
+  `selectOutreachCandidates`), the recruiter **reviews/edits/approves or rejects
+  each draft**, and approved ones **send from the workspace's connected mailbox**
+  (Gmail/Outlook). A private-harness agent (`lib/outreach/harness.ts`, key
+  `outreach/harness.md`, env `OUTREACH_HARNESS`) drafts **only** — it has no
+  email-send tool; it writes one draft per candidate via the new
+  `calyflow_save_outreach_draft` tool (recipient taken from the candidate's stored
+  email, never invented). Background run (`POST /api/outreach/draft` → `after()`
+  `runOutreachDrafting`; UI polls), drafts stored in `outreach_drafts` (one per
+  candidate, status `draft|sent|rejected|failed`), run history in `outreach_runs`
+  (migration 0030). **Sending is NOT an AI run** — `sendOutreachDraftAction` /
+  `sendAllOutreachAction` (`lib/actions/outreach.ts`) call the Gmail/Outlook
+  adapter directly with the human-approved text (`lib/outreach/send.ts`
+  `resolveEmailProvider`). The panel (`components/outreach-panel.tsx`) shows the
+  drafting trace, editable subject/body cards, per-draft Approve & send / Reject,
+  and a bulk Send all.
 - **Agents (top nav, `/workflows` route)**: workspace-level "My agents" manage list;
   each card → agent edit page (`/agents/[agentId]`: name + instructions, archive,
   upgrade, delete).

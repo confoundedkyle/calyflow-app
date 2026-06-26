@@ -445,6 +445,52 @@ export interface ShortlistRun {
   created_at: string;
 }
 
+// --- Outreach (email drafts) ---
+
+export type OutreachDraftStatus = "draft" | "sent" | "rejected" | "failed";
+
+/** One reviewable outreach email draft for a candidate. The drafting agent
+ *  writes it; a human-triggered send action dispatches it. */
+export interface OutreachDraft {
+  id: string;
+  workspace_id: string;
+  project_id: string;
+  candidate_id: string;
+  to_email: string | null;
+  to_name: string | null;
+  subject: string | null;
+  body: string | null;
+  status: OutreachDraftStatus;
+  edited: boolean;
+  /** Mailbox used to send (gmail | microsoft-outlook), set on send. */
+  provider: string | null;
+  sent_message_id: string | null;
+  error: string | null;
+  sent_at: string | null;
+  reviewed_by: string | null;
+  created_by: string | null;
+  created_at: string;
+}
+
+/** One Outreach drafting run (a "Draft outreach" click). */
+export interface OutreachRun {
+  id: string;
+  project_id: string;
+  status: "running" | "succeeded" | "failed";
+  steps: AgentRunStep[] | null;
+  output_text: string | null;
+  error_message: string | null;
+  provider: string | null;
+  model: string | null;
+  input_tokens: number | null;
+  output_tokens: number | null;
+  cache_read_tokens: number | null;
+  cost_usd: number | null;
+  drafts_created: number | null;
+  created_by: string | null;
+  created_at: string;
+}
+
 // --- Automation Hub ---
 
 export type AutomationScheduleKind = "daily" | "weekly" | "hourly";
