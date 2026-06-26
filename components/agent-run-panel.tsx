@@ -398,10 +398,11 @@ export function AgentRunPanel({
   const missingProviders = (agent?.boundProviders ?? []).filter(
     (p) => !connectedProviders.includes(p),
   );
-  const blocked =
-    missingCategories.length > 0 ||
-    missingProviders.length > 0 ||
-    missingDocs.length > 0;
+  // A missing required connector is a hard external blocker → render the
+  // readiness box (and its connector items) in red, not amber.
+  const connectorBlocked =
+    missingCategories.length > 0 || missingProviders.length > 0;
+  const blocked = connectorBlocked || missingDocs.length > 0;
   const ready = !blocked;
 
   // Compact "what's involved" badges that replace the canvas: a dot per piece,
@@ -719,7 +720,13 @@ export function AgentRunPanel({
       />
 
       {blocked && (
-        <div className="mt-4 rounded-card border border-amber-400/30 bg-amber-400/8 px-4 py-3">
+        <div
+          className={`mt-4 rounded-card border px-4 py-3 ${
+            connectorBlocked
+              ? "border-coral-400/40 bg-coral-400/8"
+              : "border-amber-400/30 bg-amber-400/8"
+          }`}
+        >
           <p className="text-sm font-semibold text-navy-800/70">
             Before you can run this agent:
           </p>
@@ -756,7 +763,7 @@ export function AgentRunPanel({
                 key={req.category}
                 className="flex items-center gap-2 text-sm text-navy-800/80"
               >
-                <span aria-hidden className="text-amber-400">
+                <span aria-hidden className="text-coral-400">
                   ☐
                 </span>
                 <Link
@@ -766,6 +773,9 @@ export function AgentRunPanel({
                   Connect {/^[aeio]/i.test(req.label) ? "an" : "a"} {req.label}{" "}
                   connector
                 </Link>
+                <span className="rounded-full bg-coral-400/15 px-1.5 py-px text-[10px] font-bold uppercase tracking-wide text-coral-400">
+                  Required
+                </span>
               </li>
             ))}
             {missingProviders.map((provider) => (
@@ -773,7 +783,7 @@ export function AgentRunPanel({
                 key={provider}
                 className="flex items-center gap-2 text-sm text-navy-800/80"
               >
-                <span aria-hidden className="text-amber-400">
+                <span aria-hidden className="text-coral-400">
                   ☐
                 </span>
                 <Link
@@ -782,6 +792,9 @@ export function AgentRunPanel({
                 >
                   Connect {connectorLabel(provider)}
                 </Link>
+                <span className="rounded-full bg-coral-400/15 px-1.5 py-px text-[10px] font-bold uppercase tracking-wide text-coral-400">
+                  Required
+                </span>
               </li>
             ))}
           </ul>
