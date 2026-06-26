@@ -5,8 +5,11 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
-import { setSourcingTargetsAction } from "@/lib/actions/shortlist";
-import type { Candidate, ShortlistRun } from "@/lib/types";
+import {
+  setSourcingTargetsAction,
+  setCandidateFeedbackAction,
+} from "@/lib/actions/shortlist";
+import type { Candidate, CandidateFeedback, ShortlistRun } from "@/lib/types";
 import { Button, inputClass } from "./ui";
 
 interface RunState {
@@ -399,7 +402,7 @@ export function ShortlistPanel({
                   <th className="px-4 py-2.5 font-semibold">Candidate</th>
                   <th className="px-3 py-2.5 font-semibold">Source</th>
                   <th className="px-3 py-2.5 font-semibold">Score</th>
-                  <th className="px-3 py-2.5 font-semibold">Status</th>
+                  <th className="px-3 py-2.5 text-center font-semibold">Fit</th>
                 </tr>
               </thead>
               <tbody>
@@ -416,8 +419,54 @@ export function ShortlistPanel({
 }
 
 function CandidateRow({ candidate: c }: { candidate: Candidate }) {
+  const router = useRouter();
   const [open, setOpen] = useState(false);
+  const [feedback, setFeedback] = useState<CandidateFeedback | null>(c.feedback);
+  const [reason, setReason] = useState(c.feedback_reason ?? "");
+  const [, startFeedback] = useTransition();
   const rawEntries = Object.entries(c.raw ?? {});
+
+  // Set / toggle the recruiter verdict. Clicking the active one clears it.
+  // Rejecting opens the row so the recruiter can add a reason.
+  function setVerdict(next: CandidateFeedback) {
+    const value = feedback === next ? null : next;
+    setFeedback(value);
+    if (value === "rejected") setOpen(true);
+    startFeedback(async () => {
+      try {
+        await setCandidateFeedbackAction(
+          c.id,
+          value,
+          value === "rejected" ? reason : null,
+        );
+        router.refresh();
+      } catch {
+        /* leave the optimistic state; a refresh would reconcile */
+      }
+    });
+  }
+  function saveReason() {
+    if (feedback !== "rejected") return;
+    startFeedback(async () => {
+      try {
+        await setCandidateFeedbackAction(c.id, "rejected", reason);
+      } catch {
+        /* noop */
+      }
+    });
+  }
+
+  const fitBtn = (active: boolean, tone: "accept" | "reject") =>
+    [
+      "flex h-7 w-7 items-center justify-center rounded-full border text-sm font-bold transition",
+      active && tone === "accept" && "border-mint-400 bg-mint-400 text-navy-800",
+      active && tone === "reject" && "border-coral-400 bg-coral-400 text-white",
+      !active &&
+        "border-navy-800/15 text-navy-800/35 hover:border-navy-800/40 hover:text-navy-800/70",
+    ]
+      .filter(Boolean)
+      .join(" ");
+
   return (
     <>
       <tr
@@ -454,11 +503,53 @@ function CandidateRow({ candidate: c }: { candidate: Candidate }) {
             {c.score ?? "—"}
           </span>
         </td>
-        <td className="px-3 py-2.5 text-navy-800/60 capitalize">{c.status}</td>
+        <td className="px-3 py-2.5" onClick={(e) => e.stopPropagation()}>
+          <div className="flex items-center justify-center gap-2">
+            <button
+              type="button"
+              aria-label="Good fit (accept)"
+              aria-pressed={feedback === "accepted"}
+              title="Good fit — find more like this"
+              onClick={() => setVerdict("accepted")}
+              className={fitBtn(feedback === "accepted", "accept")}
+            >
+              ✓
+            </button>
+            <button
+              type="button"
+              aria-label="Not a fit (reject)"
+              aria-pressed={feedback === "rejected"}
+              title="Not a fit — avoid this in future runs"
+              onClick={() => setVerdict("rejected")}
+              className={fitBtn(feedback === "rejected", "reject")}
+            >
+              ✕
+            </button>
+          </div>
+        </td>
       </tr>
       {open && (
         <tr className="border-b border-navy-800/8 bg-cream-100/30">
           <td colSpan={4} className="px-4 py-3">
+            {feedback === "rejected" && (
+              <div className="mb-3" onClick={(e) => e.stopPropagation()}>
+                <label className="mb-1 block text-xs font-medium text-navy-800/55">
+                  Why isn’t this a fit?{" "}
+                  <span className="font-normal text-navy-800/35">
+                    optional — the sourcing agent uses it to avoid similar
+                    profiles next run
+                  </span>
+                </label>
+                <textarea
+                  value={reason}
+                  onChange={(e) => setReason(e.target.value)}
+                  onBlur={saveReason}
+                  rows={2}
+                  placeholder="e.g. Too junior; no payments experience; wrong location."
+                  className="block w-full resize-y rounded-card border border-navy-800/15 bg-white px-3 py-2 text-xs leading-relaxed outline-none focus:border-coral-400/70 placeholder:text-navy-800/30"
+                />
+              </div>
+            )}
             <div className="flex flex-wrap gap-x-6 gap-y-1.5 text-xs">
               {c.linkedin && (
                 <a

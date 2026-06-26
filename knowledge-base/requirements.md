@@ -118,7 +118,13 @@ library instructions into the copy. A library row retired from YAML orphans copi
   agent resume without duplicating). Stops at the goal (`countQualified ≥ goal`)
   or step cap; the USD budget (`lib/shortlist/budget.ts`, no conversion — same
   unit as run cost) gates between runs. On finish it appends a `## Progress log` line
-  to the Sourcing Plan, so re-running **continues where it left off**.
+  to the Sourcing Plan, so re-running **continues where it left off**. The
+  candidate table's **Fit** column is a human-in-the-loop feedback loop: the
+  recruiter marks each candidate ✓ accepted / ✕ rejected (with an optional reason)
+  via `setCandidateFeedbackAction` (`candidates.feedback`/`feedback_reason`,
+  migration 0029). Future runs inject a `# Recruiter feedback` block
+  (`lib/candidates/feedback.ts` + `listCandidateFeedback`) so the agent favours
+  accepted profiles and avoids rejected patterns.
 - **Agents (top nav, `/workflows` route)**: workspace-level "My agents" manage list;
   each card → agent edit page (`/agents/[agentId]`: name + instructions, archive,
   upgrade, delete).

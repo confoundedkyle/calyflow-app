@@ -396,6 +396,10 @@ export interface AgentRun {
 
 export type CandidateStatus = "sourced" | "qualified" | "rejected";
 
+/** Recruiter's human verdict on a candidate's fit (separate from the agent's
+ *  score/status). Fed back into future sourcing runs. */
+export type CandidateFeedback = "accepted" | "rejected";
+
 /** A sourced candidate. Standardized columns power the list/goal/dedupe; `raw`
  *  holds whatever ad-hoc fields the data source returned (queryable JSONB). */
 export interface Candidate {
@@ -411,6 +415,12 @@ export interface Candidate {
   status: CandidateStatus;
   raw: Record<string, unknown>;
   storage_path: string | null;
+  /** Recruiter fit verdict — null until reviewed. */
+  feedback: CandidateFeedback | null;
+  /** Why the candidate isn't a fit (set with a 'rejected' verdict). */
+  feedback_reason: string | null;
+  feedback_at: string | null;
+  feedback_by: string | null;
   created_by: string | null;
   created_at: string;
 }
