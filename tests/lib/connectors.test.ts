@@ -9,18 +9,26 @@ describe("connector catalog", () => {
   });
 
   it("gives every live connector a provider and auth type", () => {
-    for (const c of CONNECTORS.filter((c) => c.live)) {
+    // Built-in, keyless connectors (e.g. DuckDuckGo) have no auth/adapter.
+    for (const c of CONNECTORS.filter((c) => c.live && !c.builtin)) {
       expect(c.provider, `${c.name} needs a provider id`).toBeTruthy();
       expect(c.auth, `${c.name} needs an auth type`).toBeTruthy();
     }
   });
 
   it("backs every live connector with a registered adapter", () => {
-    for (const c of CONNECTORS.filter((c) => c.live)) {
+    for (const c of CONNECTORS.filter((c) => c.live && !c.builtin)) {
       expect(isLiveConnector(c.provider!), `${c.name} has no adapter`).toBe(
         true,
       );
       expect(getAdapter(c.provider!)!.authType).toBe(c.auth);
+    }
+  });
+
+  it("marks built-in connectors as keyless (no auth, no adapter)", () => {
+    for (const c of CONNECTORS.filter((c) => c.builtin)) {
+      expect(c.auth, `${c.name} should have no auth`).toBeUndefined();
+      expect(c.live, `${c.name} should be live`).toBe(true);
     }
   });
 

@@ -38,6 +38,7 @@ import { folkAdapter } from "../integrations/folk";
 import { fullenrichAdapter } from "../integrations/fullenrich";
 import { githubAdapter } from "../integrations/github";
 import { firecrawlScrape, firecrawlSearch } from "../integrations/firecrawl";
+import { duckduckgoSearch } from "../integrations/duckduckgo";
 import { gmailAdapter } from "../integrations/gmail";
 import { gongAdapter } from "../integrations/gong";
 import { googleSheetsAdapter } from "../integrations/google-sheets";
@@ -538,9 +539,24 @@ function buildAll(ctx: ToolContext): ToolSet {
         limit: z.number().int().positive().optional().describe("Max results (default 10, max 30)."),
       }),
       execute: async (args) => {
-        if (!ctx.firecrawlKey)
-          return { error: "Web search is unavailable — connect Firecrawl in Settings → Connectors (or set FIRECRAWL_API_KEY)." };
-        const { results } = await firecrawlSearch(ctx.firecrawlKey, args);
+        // Prefer Firecrawl (richer); fall back to keyless DuckDuckGo so web
+        // search always works even without a Firecrawl connection. If Firecrawl
+        // errors or returns nothing, try DuckDuckGo before giving up.
+        let results: { url: string; title?: string; description?: string }[] = [];
+        if (ctx.firecrawlKey) {
+          try {
+            results = (await firecrawlSearch(ctx.firecrawlKey, args)).results;
+          } catch {
+            results = [];
+          }
+        }
+        if (results.length === 0) {
+          try {
+            results = (await duckduckgoSearch(args)).results;
+          } catch {
+            results = [];
+          }
+        }
         if (results.length === 0) return { text: "_No results._", count: 0 };
         return {
           text: results
