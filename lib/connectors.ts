@@ -61,6 +61,7 @@ export const CONNECTORS: Connector[] = [
   { name: "Greenhouse", category: "ats", blurb: "Sync jobs and candidates from the enterprise hiring standard.", provider: "greenhouse", live: true, auth: "apikey" },
   { name: "JazzHR", category: "ats", blurb: "Import candidates from the SMB-friendly recruiting software.", provider: "jazzhr", live: true, auth: "apikey" },
   { name: "JobAdder", category: "ats", blurb: "Sync candidates, jobs, and pipelines from the ANZ/UK agency favorite.", provider: "jobadder", live: true, auth: "oauth" },
+  { name: "Jobin Cloud", category: "ats", extraCategories: ["crm"], blurb: "Search your Jobin Cloud candidate database and read your outreach campaigns.", provider: "jobin-cloud", live: true, auth: "apikey", apiKeyHint: "Create a key in Jobin.cloud under Workgroups → Integrations → Custom integration, and paste it here." },
   { name: "Lever", category: "ats", blurb: "Sync pipelines from the CRM-style ATS teams love.", provider: "lever", live: true, auth: "apikey" },
   { name: "Loxo", category: "ats", blurb: "Pull candidates from the AI recruiting platform for agencies.", provider: "loxo", live: true, auth: "apikey", apiKeyPlaceholder: "agency-slug:api-key", apiKeyHint: "The slug is the subdomain in your Loxo URL ({slug}.app.loxo.co); keys live in Settings → API Keys (Open API access is a paid Loxo feature)." },
   { name: "Manatal", category: "ats", blurb: "Import candidates from the affordable AI-recommendation ATS.", provider: "manatal", live: true, auth: "apikey" },
@@ -243,6 +244,7 @@ export function connectorLabel(provider: string): string {
  *  Most providers use "<slug>_"; the exceptions drop dashes or abbreviate. */
 export function providerToolPrefix(provider: string): string {
   const exceptions: Record<string, string> = {
+    "jobin-cloud": "jobin_",
     "google-sheets": "googlesheets_",
     "microsoft-excel": "excel_",
     "microsoft-outlook": "outlook_",
@@ -281,6 +283,7 @@ export const CONNECTOR_DOMAINS: Record<string, string> = {
   greenhouse: "greenhouse.io",
   jazzhr: "jazzhr.com",
   jobadder: "jobadder.com",
+  "jobin-cloud": "jobin.cloud",
   lever: "lever.co",
   loxo: "loxo.co",
   manatal: "manatal.com",
