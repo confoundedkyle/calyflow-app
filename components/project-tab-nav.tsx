@@ -10,6 +10,7 @@ export function ProjectTabNav({ basePath }: { basePath: string }) {
   const isSourcingPlan = pathname.startsWith(`${basePath}/sourcing-plan`);
   const isShortlist = pathname.startsWith(`${basePath}/shortlist`);
   const isQualification = pathname.startsWith(`${basePath}/qualification`);
+  const isOutreach = pathname.startsWith(`${basePath}/outreach`);
   const isAgents = pathname.startsWith(`${basePath}/agents`);
 
   const tabs = [
@@ -29,6 +30,11 @@ export function ProjectTabNav({ basePath }: { basePath: string }) {
       href: `${basePath}/shortlist`,
       label: "Shortlist",
       active: isShortlist,
+    },
+    {
+      href: `${basePath}/outreach`,
+      label: "Outreach",
+      active: isOutreach,
     },
     { href: `${basePath}/settings`, label: "Settings", active: isSettings },
   ];

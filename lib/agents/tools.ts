@@ -6,6 +6,7 @@ import { listDocuments, getDocument } from "../queries";
 import { appendProgressEntry } from "../sourcing-plan/progress";
 import { saveCandidate } from "../candidates/save";
 import { listCandidatesCompact } from "../candidates/queries";
+import { saveOutreachDraft } from "../outreach/drafts";
 import { adzunaAdapter } from "../integrations/adzuna";
 import { affinityAdapter } from "../integrations/affinity";
 import { aircallAdapter } from "../integrations/aircall";
@@ -121,6 +122,9 @@ export interface ToolContext extends ConnectorTokens {
    *  Shortlist run loop track progress toward the goal. Optional: only the
    *  Sourcing Agent provides it. */
   savedCandidateIds?: string[];
+  /** Outreach drafts written this run (mutated by calyflow_save_outreach_draft).
+   *  Optional: only the Outreach agent provides it. */
+  savedDraftIds?: string[];
 }
 
 const READ_DOC_CHAR_CAP = 8_000;
@@ -3775,6 +3779,39 @@ function buildAll(ctx: ToolContext): ToolSet {
         };
       },
     }),
+    calyflow_save_outreach_draft: tool({
+      description:
+        "Save a personalized outreach EMAIL draft for one candidate (the recruiter " +
+        "reviews and sends it later — you never send). Pass the candidate's `id` " +
+        "(exactly as given in '# Candidates to draft for'), plus a plain-text " +
+        "`subject` and `body`. The recipient is taken from the candidate's stored " +
+        "email automatically — you never type an address. Call once per candidate; " +
+        "re-saving replaces that candidate's un-sent draft.",
+      inputSchema: z.object({
+        candidateId: z.string().describe("The candidate's id from the context."),
+        subject: z.string().min(1).max(200).describe("Email subject line."),
+        body: z.string().min(1).max(10_000).describe("Plain-text email body."),
+      }),
+      execute: async ({ candidateId, subject, body }) => {
+        try {
+          const result = await saveOutreachDraft({
+            workspaceId: ctx.workspaceId,
+            projectId: ctx.projectId,
+            userId: ctx.userId,
+            candidateId,
+            subject,
+            body,
+          });
+          ctx.savedDraftIds?.push(result.id);
+          return { draftId: result.id, to: result.to, replaced: result.replaced };
+        } catch (err) {
+          return {
+            skipped:
+              err instanceof Error ? err.message : "Could not save the draft.",
+          };
+        }
+      },
+    }),
   };
 }
 
@@ -4013,6 +4050,7 @@ export const ALL_TOOL_NAMES = [
   "calyflow_log_sourcing_progress",
   "calyflow_save_candidate",
   "calyflow_list_candidates",
+  "calyflow_save_outreach_draft",
 ] as const;
 
 // Outreach / write tools the main Sourcing Agent must NOT use — it sources and
@@ -4027,6 +4065,8 @@ const SOURCING_AGENT_TOOL_DENYLIST = new Set<string>([
   // The Shortlist run loop appends the progress-log line itself on finish, so
   // the agent must not also log (would double-write).
   "calyflow_log_sourcing_progress",
+  // Outreach drafting is its own agent/page — not the sourcing agent's job.
+  "calyflow_save_outreach_draft",
 ]);
 
 /**

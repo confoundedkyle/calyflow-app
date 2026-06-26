@@ -209,6 +209,11 @@ export const env = {
   get qualificationHarness() {
     return process.env.QUALIFICATION_HARNESS ?? "";
   },
+  /** Optional self-host fallback for the Outreach (email drafting) harness.
+   *  See lib/outreach/harness.ts. */
+  get outreachHarness() {
+    return process.env.OUTREACH_HARNESS ?? "";
+  },
 };
 
 function required(name: string): string {
