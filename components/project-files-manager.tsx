@@ -72,7 +72,12 @@ function DocCategorySection({
   const label = TYPE_LABELS[docType] ?? docType;
   const active = docs.filter((d) => d.is_active);
   const archived = docs.filter((d) => !d.is_active);
-  const filled = active.length > 0;
+  // A doc only counts as ready if it has readable text — agents read the text,
+  // not the filename. A file whose text didn't extract (e.g. a scanned or
+  // secured PDF) would otherwise show ✓ here yet be invisible to every agent.
+  const withText = active.filter((d) => d.extracted_text?.trim());
+  const filled = withText.length > 0;
+  const textless = active.length > 0 && withText.length === 0;
   const panelId = `add-${docType}`;
 
   return (
@@ -158,7 +163,13 @@ function DocCategorySection({
         </div>
       )}
 
-      {!filled && !isOpen && (
+      {textless && !isOpen && (
+        <p className="mt-2 text-xs text-amber-400">
+          “{active[0]?.filename}” has no readable text, so agents can’t use it —
+          re-add it as text or Markdown (a scanned or secured PDF won’t extract).
+        </p>
+      )}
+      {!filled && !textless && !isOpen && (
         <p className="mt-2 text-xs text-navy-800/40">
           {required
             ? "Required before this can run."
