@@ -21,7 +21,12 @@ import {
   resolveConnectorTokens,
   resolveFirecrawlKey,
 } from "../agents/connector-tokens";
-import { countQualified, listCandidatesCompact } from "../candidates/queries";
+import {
+  countQualified,
+  listCandidatesCompact,
+  listCandidateFeedback,
+} from "../candidates/queries";
+import { formatFeedbackBlock } from "../candidates/feedback";
 import { appendProgressEntry } from "../sourcing-plan/progress";
 import type { AgentRunStep, Client, Project, Workspace } from "../types";
 
@@ -184,6 +189,15 @@ export async function runShortlistSourcing(
       spent,
       params.budgetUsd,
     )}`;
+
+    // Recruiter fit feedback from earlier reviews — calibrate to it.
+    try {
+      const fb = await listCandidateFeedback(projectId);
+      const block = formatFeedbackBlock(fb.accepted, fb.rejected);
+      if (block) systemPrompt = `${systemPrompt}\n\n${block}`;
+    } catch (err) {
+      console.warn("Shortlist: feedback block failed:", err);
+    }
 
     const userPrompt =
       "Source candidates for this project following your harness. Save each one " +
