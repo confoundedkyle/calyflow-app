@@ -206,6 +206,18 @@ function ConnectorFooter({
     );
   }
 
+  // Built-in, keyless capability (e.g. DuckDuckGo) — always on, nothing to set up.
+  if (connector.builtin) {
+    return (
+      <div className="mt-4 flex items-center gap-2">
+        <span className="rounded-chip bg-mint-400/20 px-3 py-1.5 text-sm font-semibold text-mint-700">
+          ✓ Built in
+        </span>
+        <span className="text-xs text-navy-800/45">No setup needed</span>
+      </div>
+    );
+  }
+
   // A 'pending' BYO connection has saved app credentials but hasn't completed
   // the OAuth round-trip yet — treat it as not-yet-connected.
   if (connection && connection.status !== "pending") {
