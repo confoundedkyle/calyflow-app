@@ -51,6 +51,7 @@ import { insightlyAdapter } from "../integrations/insightly";
 import { instantlyAdapter } from "../integrations/instantly";
 import { jazzhrAdapter } from "../integrations/jazzhr";
 import { jobadderAdapter } from "../integrations/jobadder";
+import { jobinAdapter } from "../integrations/jobin";
 import { klentyAdapter } from "../integrations/klenty";
 import { leadmagicAdapter } from "../integrations/leadmagic";
 import { lemlistAdapter } from "../integrations/lemlist";
@@ -1998,6 +1999,42 @@ function buildAll(ctx: ToolContext): ToolSet {
       },
     }),
 
+    jobin_search_candidates: tool({
+      description:
+        "Search the connected Jobin Cloud candidate database. Filter by role title, " +
+        "name, email, or a profile URL (LinkedIn) — combine filters to narrow. With " +
+        "no filters it returns recent candidates. Returns a Markdown table (name, " +
+        "title, company, email, location, LinkedIn).",
+      inputSchema: z.object({
+        roleTitle: z
+          .string()
+          .optional()
+          .describe("Current or previous role title to match (2-256 chars)."),
+        firstName: z.string().optional().describe("Candidate first name."),
+        lastName: z.string().optional().describe("Candidate last name."),
+        email: z.string().optional().describe("Filter by email address."),
+        socialUrl: z
+          .string()
+          .optional()
+          .describe("Filter by a profile URL, e.g. a LinkedIn profile."),
+        limit: z.number().int().positive().optional().describe("Max 100 (default 25)."),
+      }),
+      execute: async (args) => {
+        if (!ctx.jobinToken) return { error: notConnected("Jobin Cloud") };
+        return jobinAdapter.searchCandidates(ctx.jobinToken, args);
+      },
+    }),
+    jobin_list_campaigns: tool({
+      description:
+        "List the outreach campaigns (sequences) in the connected Jobin Cloud " +
+        "workspace, with status and contact counts. Returns a Markdown table.",
+      inputSchema: z.object({}),
+      execute: async () => {
+        if (!ctx.jobinToken) return { error: notConnected("Jobin Cloud") };
+        return jobinAdapter.listCampaigns(ctx.jobinToken);
+      },
+    }),
+
     lever_list_postings: tool({
       description:
         "List job postings in the connected Lever ATS (title, state, team, location, posting id). Filter by state, e.g. published. Use to find the role you are sourcing for.",
@@ -3940,6 +3977,8 @@ export const ALL_TOOL_NAMES = [
   "jobadder_list_jobs",
   "jobadder_search_candidates",
   "jobadder_list_job_applications",
+  "jobin_search_candidates",
+  "jobin_list_campaigns",
   "lever_list_postings",
   "lever_list_opportunities",
   "klenty_list_cadences",

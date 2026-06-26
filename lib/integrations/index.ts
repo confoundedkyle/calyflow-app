@@ -45,6 +45,7 @@ import { insightlyAdapter } from "./insightly";
 import { instantlyAdapter } from "./instantly";
 import { jazzhrAdapter } from "./jazzhr";
 import { jobadderAdapter } from "./jobadder";
+import { jobinAdapter } from "./jobin";
 import { klentyAdapter } from "./klenty";
 import { leadmagicAdapter } from "./leadmagic";
 import { lemlistAdapter } from "./lemlist";
@@ -146,6 +147,7 @@ const ADAPTERS: Record<string, ConnectorAdapter> = {
   instantly: instantlyAdapter,
   jazzhr: jazzhrAdapter,
   jobadder: jobadderAdapter,
+  "jobin-cloud": jobinAdapter,
   klenty: klentyAdapter,
   leadmagic: leadmagicAdapter,
   lemlist: lemlistAdapter,
