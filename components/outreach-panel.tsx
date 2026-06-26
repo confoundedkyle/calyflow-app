@@ -43,7 +43,9 @@ export function OutreachPanel({
   drafts,
   eligibleCount,
   mailboxes,
+  senderConfigured,
   connectorsHref,
+  personalHref,
   shortlistHref,
   initialRun,
 }: {
@@ -52,7 +54,9 @@ export function OutreachPanel({
   drafts: OutreachDraft[];
   eligibleCount: number;
   mailboxes: string[];
+  senderConfigured: boolean;
   connectorsHref: string;
+  personalHref: string;
   shortlistHref: string;
   initialRun: OutreachRun | null;
 }) {
@@ -162,8 +166,19 @@ export function OutreachPanel({
         </p>
       </div>
 
-      {!hasMailbox && (
+      {!senderConfigured && (
         <div className="mb-4 rounded-card border border-amber-400/30 bg-amber-400/8 px-4 py-3 text-sm text-navy-800/80">
+          Your sender details aren’t set, so drafts won’t be signed (and may use
+          placeholders). Add your name and email signature in{" "}
+          <Link href={personalHref} className="font-semibold text-mint-700 hover:underline">
+            Settings → Personal
+          </Link>{" "}
+          before drafting, so every email is signed as you.
+        </div>
+      )}
+
+      {!hasMailbox && (
+        <div className="mb-4 rounded-card border border-coral-400/40 bg-coral-400/8 px-4 py-3 text-sm text-coral-400">
           No mailbox connected. Connect{" "}
           <Link href={connectorsHref} className="font-semibold text-mint-700 hover:underline">
             Gmail or Microsoft Outlook
