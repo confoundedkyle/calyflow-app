@@ -1,14 +1,17 @@
 /**
  * Uploads a private harness (the prompt/IP) to the private `system-config`
  * Storage bucket. Run once per environment — harnesses are deliberately NOT
- * committed to the repo, so they live in files outside the git tree (e.g.
- * ./secrets/*.md, which is .gitignored).
+ * committed to the repo, so they live outside the git tree under ./secrets/
+ * (which is .gitignored), one folder per harness so the local path mirrors the
+ * Storage object key: ./secrets/<name>/harness.md → <name>/harness.md.
  *
  * Usage:
  *   node scripts/upload-harness.mjs <path-to-harness.md> [object-key]
  *
- * object-key defaults to "sourcing-plan/harness.md" for back-compat. The other
- * harnesses are "shortlist/harness.md" and "qualification/harness.md".
+ * object-key defaults to "sourcing-plan/harness.md" for back-compat. Examples:
+ *   node scripts/upload-harness.mjs secrets/sourcing-plan/harness.md
+ *   node scripts/upload-harness.mjs secrets/shortlist/harness.md shortlist/harness.md
+ *   node scripts/upload-harness.mjs secrets/qualification/harness.md qualification/harness.md
  *
  * Requires SUPABASE_URL and SUPABASE_SERVICE_ROLE_KEY (read from .env.local for
  * local runs, or the real environment in CI/prod).
