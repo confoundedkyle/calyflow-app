@@ -108,6 +108,7 @@ export const DOC_CONNECTORS: Record<string, ConnectorDocContent> = {
     configuration: [
       "Read-only: Calyflow queries Ashby on demand and never writes back to it.",
     ],
+    links: [{ label: "Ashby API docs", url: "https://developer.ashbyhq.com/" }],
   },
   greenhouse: {
     capabilities: [
@@ -128,6 +129,7 @@ export const DOC_CONNECTORS: Record<string, ConnectorDocContent> = {
     connectionOptions: [
       "Calyflow uses Greenhouse's Harvest API (read). Give the key only the job and candidate read permissions it needs.",
     ],
+    links: [{ label: "Greenhouse Harvest API", url: "https://developers.greenhouse.io/harvest.html" }],
   },
   bullhorn: {
     capabilities: [
@@ -150,25 +152,37 @@ export const DOC_CONNECTORS: Record<string, ConnectorDocContent> = {
     connectionOptions: [
       "Bullhorn runs several regional data centres (\"swimlanes\"). Hosted users are routed automatically; self-hosters point BULLHORN_AUTH_BASE / BULLHORN_REST_LOGIN_BASE at their cluster.",
     ],
+    links: [{ label: "Bullhorn REST API docs", url: "https://bullhorn.github.io/rest-api-docs/" }],
   },
   bamboohr: {
+    capabilities: ["List your jobs", "List a job's applications with each candidate"],
     useCases: [
       "Pull applicants from a BambooHR job into a shortlist",
       "Screen a role's applicants against its requirements",
+      "Resurface strong past applicants for a new opening",
     ],
+    whatYouNeed: ["A BambooHR account with ATS access and permission to create an API key"],
+    configuration: ["Read-only: Calyflow reads jobs and applications and never writes back to BambooHR."],
     connectionOptions: [
       "The key field is `company-domain:api-key` — the company domain is the part before .bamboohr.com.",
     ],
+    links: [{ label: "BambooHR API docs", url: "https://documentation.bamboohr.com/docs" }],
   },
   loxo: {
+    capabilities: [
+      "List your jobs and a job's candidates",
+      "Search your Loxo people database",
+    ],
     useCases: [
       "Search your Loxo people database for a live role",
       "Pull a job's candidates into a screening or shortlist run",
+      "Re-approach strong past candidates for a similar new role",
     ],
     whatYouNeed: [
       "A Loxo account",
       "Open API access — a paid Loxo feature — to create an API key",
     ],
+    configuration: ["Read-only: Calyflow reads jobs, candidates, and people and never writes back to Loxo."],
     connectionOptions: [
       "The key field is `agency-slug:api-key` — the slug is the subdomain in your Loxo URL ({slug}.app.loxo.co).",
     ],
@@ -489,6 +503,7 @@ export const DOC_CONNECTORS: Record<string, ConnectorDocContent> = {
     connectionOptions: [
       "Give the private app only read scopes for contacts, companies, and deals.",
     ],
+    links: [{ label: "HubSpot API docs", url: "https://developers.hubspot.com/docs/api/overview" }],
   },
   notion: {
     capabilities: [
@@ -506,6 +521,7 @@ export const DOC_CONNECTORS: Record<string, ConnectorDocContent> = {
     configuration: [
       "Agents can only read the specific pages and databases you share with the integration — share exactly what you want them to see.",
     ],
+    links: [{ label: "Notion API docs", url: "https://developers.notion.com/" }],
   },
 
   // ── Data & spreadsheets ───────────────────────────────────────────────────
@@ -735,6 +751,7 @@ export const DOC_CONNECTORS: Record<string, ConnectorDocContent> = {
     configuration: [
       "Searches and enrichment draw on your Apollo credits, so usage counts against your Apollo plan.",
     ],
+    links: [{ label: "Apollo API docs", url: "https://docs.apollo.io/" }],
   },
   hunter: {
     capabilities: [
@@ -750,6 +767,7 @@ export const DOC_CONNECTORS: Record<string, ConnectorDocContent> = {
       "In Hunter, open your account → API and copy your API key.",
       "Paste it in Calyflow under Settings → Connectors → Hunter.io.",
     ],
+    links: [{ label: "Hunter.io API docs", url: "https://hunter.io/api-documentation" }],
   },
   coresignal: {
     capabilities: [
@@ -766,6 +784,7 @@ export const DOC_CONNECTORS: Record<string, ConnectorDocContent> = {
       "In Coresignal, copy your API key from the dashboard.",
       "Paste it in Calyflow under Settings → Connectors → Coresignal.",
     ],
+    links: [{ label: "Coresignal API docs", url: "https://docs.coresignal.com/" }],
   },
   emailable: {
     capabilities: [
@@ -1297,11 +1316,17 @@ export const DOC_CONNECTORS: Record<string, ConnectorDocContent> = {
     ],
   },
   gong: {
+    capabilities: [
+      "List recorded calls in a date window",
+      "Read a call's AI summary and transcript",
+    ],
     useCases: [
       "Pull the summary of an intake call to brief an agent on the role",
       "Use call transcripts to capture exactly what the hiring manager asked for",
+      "Review a screening call without re-listening to the recording",
     ],
     whatYouNeed: ["A Gong account; an admin creates the API access key"],
+    configuration: ["Read-only: Calyflow reads your calls and transcripts and never changes anything in Gong."],
     connectionOptions: [
       "The key field is `access-key:secret` — a Gong admin generates both under company settings → Ecosystem → API.",
     ],
@@ -1328,13 +1353,24 @@ export const DOC_CONNECTORS: Record<string, ConnectorDocContent> = {
     ],
   },
   snov: {
+    capabilities: [
+      "Find a verified work email, and verify an email's deliverability",
+      "Read a person's profile",
+    ],
     useCases: [
       "Find verified work emails for a list of candidates",
       "Build and verify a contactable outreach list",
+      "Verify an email before adding it to a campaign to protect deliverability",
+    ],
+    whatYouNeed: ["A Snov.io account with API access (client ID + secret)"],
+    configuration: [
+      "Some lookups are asynchronous: a task is submitted, then the result is fetched when ready — agents handle this automatically.",
+      "Lookups draw on your Snov.io credits.",
     ],
     connectionOptions: [
       "The key field is `client-id:client-secret` — both are shown in Snov.io under account settings → API.",
     ],
+    links: [{ label: "Snov.io API docs", url: "https://snov.io/api" }],
   },
   replyio: {
     capabilities: [
@@ -1357,6 +1393,502 @@ export const DOC_CONNECTORS: Record<string, ConnectorDocContent> = {
     links: [
       { label: "Reply.io API docs", url: "https://docs.reply.io/api-reference/introduction" },
     ],
+  },
+
+  // ── Backfilled: authored capabilities, use cases & links ──────────────────
+  breezyhr: {
+    capabilities: [
+      "List your BreezyHR positions and their candidate pipelines",
+      "List and search candidates to assemble a shortlist",
+    ],
+    useCases: [
+      "Build a ranked shortlist from a Breezy position's candidates",
+      "Screen a role's applicants against its job description and scorecard",
+      "Resurface strong past applicants worth re-approaching for a new opening",
+    ],
+    whatYouNeed: ["A BreezyHR account with API access"],
+    configuration: ["Read-only: Calyflow reads positions and candidates and never writes back to BreezyHR."],
+    links: [{ label: "BreezyHR API docs", url: "https://developer.breezy.hr/" }],
+  },
+  cats: {
+    capabilities: ["List your jobs", "List candidates to build a shortlist"],
+    useCases: [
+      "Pull a CATS job's candidates into a shortlist",
+      "Screen a role's applicants against the JD and scorecard",
+      "Re-approach strong past candidates for a similar new role",
+    ],
+    whatYouNeed: ["A CATS account with API access"],
+    configuration: ["Read-only: Calyflow reads jobs and candidates and never writes back to CATS."],
+    links: [{ label: "CATS API docs", url: "https://docs.catsone.com/api/v3/" }],
+  },
+  crelate: {
+    capabilities: [
+      "List your jobs",
+      "List and search contacts (candidates and client contacts)",
+    ],
+    useCases: [
+      "Search your Crelate database for a live role instead of sourcing cold",
+      "Pull a candidate's contact details into a screening or outreach run",
+      "Find contacts at a target company for business development",
+    ],
+    whatYouNeed: ["A Crelate account that can enable an API key"],
+    configuration: ["Read-only: Calyflow reads jobs and contacts and never writes back to Crelate."],
+  },
+  jazzhr: {
+    capabilities: [
+      "List your jobs",
+      "List applicants and fetch a single applicant's details",
+    ],
+    useCases: [
+      "Build a shortlist from a JazzHR job's applicants",
+      "Screen a role's applicants against the JD and scorecard",
+      "Pull a specific applicant's details into a task",
+    ],
+    whatYouNeed: ["A JazzHR account with API access"],
+    configuration: ["Read-only: Calyflow reads jobs and applicants and never writes back to JazzHR."],
+    links: [{ label: "JazzHR API docs", url: "https://www.resumatorapi.com/v1/" }],
+  },
+  jobadder: {
+    capabilities: [
+      "List your jobs",
+      "Search candidates and list a job's applications with each candidate's stage",
+    ],
+    useCases: [
+      "Mine your JobAdder database for a live role instead of sourcing cold",
+      "Pull a job's applications into a screening run",
+      "Re-approach past placements and silver-medalists for a new opening",
+    ],
+    whatYouNeed: ["A JobAdder account"],
+    steps: ["Open Settings → Connectors → JobAdder and click Connect, then sign in to JobAdder and approve access."],
+    configuration: ["Read-only: Calyflow reads jobs, candidates, and applications and never writes back to JobAdder."],
+    links: [{ label: "JobAdder API docs", url: "https://api.jobadder.com/v2/docs" }],
+  },
+  lever: {
+    capabilities: [
+      "List your job postings",
+      "List opportunities (candidates in the pipeline) for a role",
+    ],
+    useCases: [
+      "Build a ranked shortlist from a Lever posting's pipeline",
+      "Screen a role's candidates against the JD and scorecard",
+      "Resurface strong past applicants for a new opening",
+    ],
+    whatYouNeed: ["A Lever account with permission to create an API key"],
+    steps: [
+      "In Lever, go to Settings → Integrations and API → API Credentials and create an API key.",
+      "In Calyflow, go to Settings → Connectors → Lever and paste it.",
+    ],
+    configuration: ["Read-only: Calyflow reads postings and opportunities and never writes back to Lever."],
+    links: [{ label: "Lever API docs", url: "https://hire.lever.co/developer/documentation" }],
+  },
+  manatal: {
+    capabilities: [
+      "List your jobs and a job's candidates",
+      "Search candidates to build a shortlist",
+    ],
+    useCases: [
+      "Pull a Manatal job's candidates into a shortlist",
+      "Search your candidate database for a live role",
+      "Screen a role's applicants against the JD and scorecard",
+    ],
+    whatYouNeed: ["A Manatal account with API access"],
+    configuration: ["Read-only: Calyflow reads jobs and candidates and never writes back to Manatal."],
+    links: [{ label: "Manatal API docs", url: "https://developers.manatal.com/" }],
+  },
+  pinpoint: {
+    capabilities: ["List your jobs", "List candidates to build a shortlist"],
+    useCases: [
+      "Build a shortlist from a Pinpoint role's candidates",
+      "Screen a role's applicants against the JD and scorecard",
+      "Resurface strong past applicants for a new opening",
+    ],
+    whatYouNeed: ["A Pinpoint account (your subdomain + an API key)"],
+    configuration: ["Read-only: Calyflow reads jobs and candidates and never writes back to Pinpoint."],
+    links: [{ label: "Pinpoint API docs", url: "https://developers.pinpointhq.com/" }],
+  },
+  recruitee: {
+    capabilities: ["List your offers (jobs)", "List candidates to build a shortlist"],
+    useCases: [
+      "Build a shortlist from a Recruitee offer's candidates",
+      "Screen a role's applicants against the JD and scorecard",
+      "Resurface strong past applicants for a new opening",
+    ],
+    whatYouNeed: ["A Recruitee account (company ID + a personal API token)"],
+    configuration: ["Read-only: Calyflow reads offers and candidates and never writes back to Recruitee."],
+    links: [{ label: "Recruitee API docs", url: "https://docs.recruitee.com/reference" }],
+  },
+  recruiterflow: {
+    capabilities: ["List your jobs", "List candidates to build a shortlist"],
+    useCases: [
+      "Search your Recruiterflow database for a live role",
+      "Pull a job's candidates into a screening or shortlist run",
+      "Re-approach strong past candidates for a similar new role",
+    ],
+    whatYouNeed: ["A Recruiterflow account with API access"],
+    configuration: ["Read-only: Calyflow reads jobs and candidates and never writes back to Recruiterflow."],
+    links: [{ label: "Recruiterflow API docs", url: "https://apidoc.recruiterflow.com/" }],
+  },
+  smartrecruiters: {
+    capabilities: ["List your jobs", "List candidates to build a shortlist"],
+    useCases: [
+      "Build a shortlist from a SmartRecruiters job's candidates",
+      "Screen a role's applicants against the JD and scorecard",
+      "Resurface strong past applicants for a new opening",
+    ],
+    whatYouNeed: ["A SmartRecruiters account that can create a SmartToken API key"],
+    steps: [
+      "In SmartRecruiters, go to Settings → Apps & Integrations → API and create a SmartToken.",
+      "In Calyflow, go to Settings → Connectors → SmartRecruiters and paste it.",
+    ],
+    configuration: ["Read-only: Calyflow reads jobs and candidates and never writes back to SmartRecruiters."],
+    links: [{ label: "SmartRecruiters API docs", url: "https://developers.smartrecruiters.com/" }],
+  },
+  teamtailor: {
+    capabilities: [
+      "List your jobs and a job's candidates",
+      "List candidates to build a shortlist",
+    ],
+    useCases: [
+      "Build a shortlist from a Teamtailor job's candidates",
+      "Screen a role's applicants against the JD and scorecard",
+      "Resurface strong past applicants for a new opening",
+    ],
+    whatYouNeed: ["A Teamtailor account that can create an API key"],
+    steps: [
+      "In Teamtailor, go to Settings → API Keys and create a key with read access.",
+      "In Calyflow, go to Settings → Connectors → Teamtailor and paste it.",
+    ],
+    configuration: ["Read-only: Calyflow reads jobs and candidates and never writes back to Teamtailor."],
+    links: [{ label: "Teamtailor API docs", url: "https://docs.teamtailor.com/" }],
+  },
+  workable: {
+    capabilities: ["List your jobs", "List candidates to build a shortlist"],
+    useCases: [
+      "Build a shortlist from a Workable job's candidates",
+      "Screen a role's applicants against the JD and scorecard",
+      "Resurface strong past applicants for a new opening",
+    ],
+    whatYouNeed: ["A Workable account that can generate an API access token"],
+    steps: [
+      "In Workable, go to Settings → Integrations → API access tokens and generate a token.",
+      "In Calyflow, go to Settings → Connectors → Workable and paste it.",
+    ],
+    configuration: ["Read-only: Calyflow reads jobs and candidates and never writes back to Workable."],
+    links: [{ label: "Workable API docs", url: "https://workable.readme.io/" }],
+  },
+  "zoho-recruit": {
+    capabilities: ["Search candidates", "Search job openings"],
+    useCases: [
+      "Search your Zoho Recruit database for a live role",
+      "Pull candidates into a screening or shortlist run",
+      "Re-approach strong past candidates for a new opening",
+    ],
+    whatYouNeed: ["A Zoho Recruit account"],
+    steps: ["Open Settings → Connectors → Zoho Recruit and click Connect, then sign in to Zoho and approve access."],
+    configuration: ["Read-only: Calyflow reads candidates and job openings and never writes back to Zoho Recruit."],
+    links: [{ label: "Zoho Recruit API docs", url: "https://www.zoho.com/recruit/developer-guide/apiv2/" }],
+  },
+  attio: {
+    capabilities: [
+      "List your Attio objects (people, companies, deals, custom)",
+      "Query records to pull contacts and accounts into a task",
+    ],
+    useCases: [
+      "Brief yourself on a client account before a call using its Attio record",
+      "Find the right contact at a target company for outreach",
+      "Pull your people and companies into research and outreach",
+    ],
+    whatYouNeed: ["An Attio account that can create an API key"],
+    steps: [
+      "In Attio, go to Settings → Developers → API keys and create a key.",
+      "In Calyflow, go to Settings → Connectors → Attio and paste it.",
+    ],
+    configuration: ["Read-only: Calyflow queries Attio for the records a task needs and never changes your CRM data."],
+    links: [{ label: "Attio API docs", url: "https://developers.attio.com/" }],
+  },
+  monday: {
+    capabilities: [
+      "List your boards",
+      "List a board's items (candidate or client rows)",
+    ],
+    useCases: [
+      "Use a monday.com candidate or client board as a source for agents",
+      "Pull a tracker's rows into a sourcing or outreach run",
+      "Read a shared client board as live context for an agent",
+    ],
+    whatYouNeed: ["A monday.com account (your personal API token)"],
+    configuration: ["Read-only: Calyflow reads the boards and items a task needs and never changes your monday data."],
+    links: [{ label: "monday.com API docs", url: "https://developer.monday.com/api-reference/docs" }],
+  },
+  pipedrive: {
+    capabilities: ["Search persons, organizations, and deals"],
+    useCases: [
+      "Brief yourself on a client account before a call using its Pipedrive record",
+      "Find the right contact at a target company for outreach",
+      "Prioritise which roles to work first based on open deals",
+    ],
+    whatYouNeed: ["A Pipedrive account (your personal API token)"],
+    steps: [
+      "In Pipedrive, go to Settings → Personal preferences → API and copy your token.",
+      "In Calyflow, go to Settings → Connectors → Pipedrive and paste it.",
+    ],
+    configuration: ["Read-only: Calyflow searches Pipedrive for the people, companies, and deals a task needs and never changes your CRM data."],
+    links: [{ label: "Pipedrive API docs", url: "https://developers.pipedrive.com/docs/api/v1" }],
+  },
+  "zoho-crm": {
+    capabilities: ["Search contacts, accounts, and deals"],
+    useCases: [
+      "Brief yourself on a client company before a call using its Zoho record",
+      "Find the right contact at a target account for outreach",
+      "Prioritise roles to work based on open deals",
+    ],
+    whatYouNeed: ["A Zoho CRM account"],
+    steps: ["Open Settings → Connectors → Zoho CRM and click Connect, then sign in to Zoho and approve access."],
+    configuration: ["Read-only: Calyflow searches Zoho CRM for the records a task needs and never changes your CRM data."],
+    links: [{ label: "Zoho CRM API docs", url: "https://www.zoho.com/crm/developer/docs/api/v2/" }],
+  },
+  airtable: {
+    capabilities: [
+      "List your bases and their tables",
+      "Read records from a table (candidate or client trackers)",
+    ],
+    useCases: [
+      "Run personalised outreach to everyone in an Airtable candidate base",
+      "Enrich a list of leads kept in Airtable with verified contacts",
+      "Use a shared client base as live context for an agent",
+    ],
+    whatYouNeed: ["An Airtable account with access to the bases you want to use"],
+    steps: ["Open Settings → Connectors → Airtable and click Connect, then sign in and allow read access to your bases."],
+    configuration: ["Read-only: Calyflow reads the bases and tables you grant and never edits your records."],
+    links: [{ label: "Airtable API docs", url: "https://airtable.com/developers/web/api/introduction" }],
+  },
+  "microsoft-excel": {
+    capabilities: [
+      "List your workbooks and worksheets in OneDrive / SharePoint",
+      "Read a range of cells (candidate or client lists)",
+    ],
+    useCases: [
+      "Turn an Excel candidate sheet into a personalised outreach run",
+      "Read a shared client or pipeline workbook without copy-pasting it in",
+      "Feed a list of leads into a sourcing or enrichment agent",
+    ],
+    whatYouNeed: ["A Microsoft 365 account with access to the workbooks you want to use"],
+    steps: ["Open Settings → Connectors → Microsoft Excel and click Connect, then sign in with Microsoft and allow read access."],
+    configuration: ["Read-only: Calyflow reads the workbooks you grant and never edits your files."],
+    links: [{ label: "Excel (Microsoft Graph) API", url: "https://learn.microsoft.com/en-us/graph/api/resources/excel" }],
+  },
+  brightdata: {
+    capabilities: [
+      "Scrape public LinkedIn profiles and company pages at scale",
+      "Fetch a snapshot result from a submitted job",
+    ],
+    useCases: [
+      "Enrich a sourced LinkedIn profile with structured public data",
+      "Pull a target company's public LinkedIn data for research",
+      "Build a structured dataset from public profiles for a search",
+    ],
+    whatYouNeed: ["A Bright Data account with API access"],
+    configuration: [
+      "Scrapes are asynchronous: a job is submitted, then the snapshot is fetched when ready — agents handle this automatically.",
+      "Lookups draw on your Bright Data balance.",
+    ],
+    links: [{ label: "Bright Data docs", url: "https://docs.brightdata.com/" }],
+  },
+  contactout: {
+    capabilities: [
+      "Search people and enrich a person from a LinkedIn URL",
+      "Reveal personal emails and phones, and verify an email",
+    ],
+    useCases: [
+      "Find a candidate's personal email and phone from their LinkedIn profile",
+      "Enrich a shortlist with verified contact details before outreach",
+      "Verify an email before adding it to a campaign",
+    ],
+    whatYouNeed: ["A ContactOut account with API access"],
+    configuration: ["Lookups draw on your ContactOut credits, so usage counts against your plan there."],
+    links: [{ label: "ContactOut API docs", url: "https://docs.contactout.com/" }],
+  },
+  fathom: {
+    capabilities: [
+      "List recorded meetings",
+      "Read a meeting's AI summary and transcript",
+    ],
+    useCases: [
+      "Pull the transcript of a client intake call to capture exactly what was asked for",
+      "Review a candidate screening call without re-listening to the recording",
+      "Brief an agent on a role using the notes from the kickoff call",
+    ],
+    whatYouNeed: ["A Fathom account with API access"],
+    configuration: ["Read-only: Calyflow reads your meetings and transcripts and never changes anything in Fathom."],
+  },
+  fireflies: {
+    capabilities: [
+      "Search and list recorded meetings",
+      "Read a meeting's AI summary and transcript",
+    ],
+    useCases: [
+      "Pull an intake-call transcript to capture exactly what the hiring manager asked for",
+      "Review a screening call without re-listening to the recording",
+      "Brief an agent on a role using the notes from the kickoff call",
+    ],
+    whatYouNeed: ["A Fireflies.ai account with API access"],
+    configuration: ["Read-only: Calyflow reads your meetings and transcripts and never changes anything in Fireflies."],
+    links: [{ label: "Fireflies API docs", url: "https://docs.fireflies.ai/" }],
+  },
+  instantly: {
+    capabilities: [
+      "List campaigns and their leads, and read campaign analytics",
+      "Add a lead to a campaign",
+    ],
+    useCases: [
+      "Check whether a candidate is already in an outreach campaign before contacting them again",
+      "Review a campaign's performance before adding more people",
+      "Add a sourced candidate to an outreach campaign",
+    ],
+    whatYouNeed: ["An Instantly.ai account with API access"],
+    configuration: ["Calyflow reads your campaigns and leads, and can add a lead to a campaign when a task asks."],
+    links: [{ label: "Instantly API docs", url: "https://developer.instantly.ai/" }],
+  },
+  lemlist: {
+    capabilities: [
+      "List campaigns and their activities",
+      "Add a lead to a campaign",
+    ],
+    useCases: [
+      "Check whether a candidate is already in a lemlist campaign before contacting them again",
+      "Review a campaign's activity before adding more people",
+      "Add a sourced candidate to an outreach campaign",
+    ],
+    whatYouNeed: ["A lemlist account with API access"],
+    configuration: ["Calyflow reads your campaigns and activity, and can add a lead to a campaign when a task asks."],
+    links: [{ label: "lemlist API docs", url: "https://developer.lemlist.com/" }],
+  },
+  lusha: {
+    capabilities: [
+      "Search for a person",
+      "Enrich a contact with a verified work email and phone",
+    ],
+    useCases: [
+      "Find a verified work email and phone for a sourced candidate",
+      "Enrich a shortlist with contact details before outreach",
+      "Find the right contact at a target company for business development",
+    ],
+    whatYouNeed: ["A Lusha account with API access"],
+    configuration: ["Lookups draw on your Lusha credits, so usage counts against your plan there."],
+    links: [{ label: "Lusha API docs", url: "https://www.lusha.com/docs/" }],
+  },
+  peopledatalabs: {
+    capabilities: [
+      "Search billions of person profiles",
+      "Enrich a person with role, company, and contact data",
+    ],
+    useCases: [
+      "Build a list of people matching a title, skill, and location",
+      "Enrich a shortlist with up-to-date role and company data",
+      "Find people who recently changed roles at a target company",
+    ],
+    whatYouNeed: ["A People Data Labs account with API access"],
+    configuration: ["Searches and enrichment draw on your PDL credits, so usage counts against your plan there."],
+    links: [{ label: "People Data Labs docs", url: "https://docs.peopledatalabs.com/" }],
+  },
+  rocketreach: {
+    capabilities: [
+      "Search 700M+ professional profiles",
+      "Look up a person's emails and phones (with async lookup)",
+    ],
+    useCases: [
+      "Find emails and phones for a sourced candidate",
+      "Enrich a shortlist with contact details before outreach",
+      "Find the right contact at a target company for business development",
+    ],
+    whatYouNeed: ["A RocketReach account with API access"],
+    configuration: [
+      "A lookup may be asynchronous: it's submitted, then the result is fetched when ready — agents handle this automatically.",
+      "Lookups draw on your RocketReach credits.",
+    ],
+    links: [{ label: "RocketReach API", url: "https://rocketreach.co/api" }],
+  },
+  signalhire: {
+    capabilities: [
+      "Search people",
+      "Reveal a candidate's emails and phones",
+    ],
+    useCases: [
+      "Reveal contact details for a sourced candidate before outreach",
+      "Enrich a shortlist with emails and phones",
+      "Find a direct line for a candidate from their profile",
+    ],
+    whatYouNeed: ["A SignalHire account with API access"],
+    configuration: ["Lookups draw on your SignalHire credits (shared with the web app and extension)."],
+    links: [{ label: "SignalHire API", url: "https://www.signalhire.com/api" }],
+  },
+  smartlead: {
+    capabilities: [
+      "List campaigns and their leads",
+      "Read campaign analytics",
+    ],
+    useCases: [
+      "Check whether a candidate is already in a Smartlead campaign before contacting them again",
+      "Review campaign performance before adding more people",
+      "Brief on an outreach campaign's status and health",
+    ],
+    whatYouNeed: ["A Smartlead account with API access"],
+    configuration: ["Read-only: Calyflow reads your campaigns, leads, and analytics and never sends or edits outreach in Smartlead."],
+    links: [{ label: "Smartlead API docs", url: "https://api.smartlead.ai/reference" }],
+  },
+  tldv: {
+    capabilities: [
+      "List recorded meetings",
+      "Read a meeting's AI notes and transcript",
+    ],
+    useCases: [
+      "Pull an intake-call transcript to capture exactly what was asked for",
+      "Review a screening call without re-watching the recording",
+      "Brief an agent on a role using a meeting's notes",
+    ],
+    whatYouNeed: ["A tl;dv account on a plan with API access (Business)"],
+    configuration: ["Read-only: Calyflow reads your meetings and transcripts and never changes anything in tl;dv."],
+  },
+  woodpecker: {
+    capabilities: [
+      "List campaigns and their prospects",
+      "Read campaign stats",
+    ],
+    useCases: [
+      "Check whether a candidate is already in a Woodpecker campaign before contacting them again",
+      "Review a campaign's prospects and stats before adding more people",
+      "Brief on an outreach campaign's health",
+    ],
+    whatYouNeed: ["A Woodpecker account with API access"],
+    configuration: ["Read-only: Calyflow reads your campaigns and prospects and never sends or edits outreach in Woodpecker."],
+    links: [{ label: "Woodpecker API docs", url: "https://developer.woodpecker.co/" }],
+  },
+  duckduckgo: {
+    capabilities: ["Free web search for agents — no key needed"],
+    useCases: [
+      'X-ray source candidates, e.g. site:linkedin.com/in "React" "Berlin"',
+      "Find a candidate's public profiles, talks, or portfolio across the web",
+      "Research a target company before a BD outreach",
+    ],
+    whatYouNeed: ["Nothing — DuckDuckGo web search is built in"],
+    steps: ["Nothing to set up. DuckDuckGo web search is built in and is used automatically when no Firecrawl key is connected."],
+    configuration: ["Keyless and free, on a best-effort basis (it can rate-limit under heavy use). For higher reliability, connect Firecrawl."],
+  },
+  firecrawl: {
+    capabilities: [
+      "Search the web and return result titles, URLs, and snippets",
+      "Read a web page as clean Markdown for an agent",
+    ],
+    useCases: [
+      "Pivot from a candidate's handle/name to their other public profiles",
+      "Read a candidate's site or a company page to confirm details",
+      "Research a target company before BD outreach",
+    ],
+    whatYouNeed: ["A Firecrawl account (optional — web search also works on the platform key)"],
+    configuration: [
+      "Powers the web_search / web_scrape tools. With your own key, lookups draw on your Firecrawl credits; otherwise web search falls back to the shared platform key (or keyless DuckDuckGo).",
+    ],
+    links: [{ label: "Firecrawl docs", url: "https://docs.firecrawl.dev/" }],
   },
 };
 
