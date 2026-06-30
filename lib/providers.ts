@@ -1,5 +1,6 @@
 import "server-only";
 import { generateText, type LanguageModel } from "ai";
+import type { ProviderOptions } from "@ai-sdk/provider-utils";
 import { db } from "./db";
 import { decrypt } from "./crypto";
 import { env } from "./env";
@@ -52,6 +53,69 @@ export async function getLanguageModel(
     }
     default:
       throw new Error(`Unsupported provider: ${effective}`);
+  }
+}
+
+/**
+ * Provider-agnostic reasoning ("Thought") enablement for an agent run.
+ *
+ * Returns the extra `generateText`/`streamText` settings needed to make the
+ * run's model surface its reasoning, so an agent loop can record a
+ * Thought → Action → Observation trace. The reasoning text itself is read
+ * uniformly from each step's `reasoningText` (the AI SDK normalises it across
+ * providers) — this helper only flips the per-provider switch that makes the
+ * model emit those thoughts in the first place.
+ *
+ * It chooses the right knob for the run's model: we only enable it on models
+ * we KNOW support reasoning, gated by model id. For every other model — and for
+ * providers (xAI, DeepSeek, Groq, Mistral, Cohere) whose reasoning models stream
+ * thoughts automatically — it returns `{}` and we simply capture `reasoningText`
+ * when present. So a non-reasoning model is never sent an option it would reject.
+ */
+export function reasoningSettings(
+  provider: string,
+  modelId: string,
+): {
+  providerOptions?: ProviderOptions;
+  /** Set only when a provider needs headroom above its thinking budget. */
+  maxOutputTokens?: number;
+} {
+  // 'calyflow' runs on the platform's real provider — resolve it the same way
+  // the rest of this module does so model-id gating sees the true model.
+  const effective = provider === "calyflow" ? env.platformProvider : provider;
+  const id = modelId.toLowerCase();
+  switch (effective) {
+    case "anthropic": {
+      // Extended thinking: Claude Opus/Sonnet/Haiku 4.x and 3.7 Sonnet.
+      const supportsThinking =
+        /claude-(opus|sonnet|haiku)-4/.test(id) ||
+        /claude-3-7-sonnet/.test(id);
+      if (!supportsThinking) return {};
+      // Anthropic requires max_tokens > thinking budget, so pair them.
+      return {
+        providerOptions: {
+          anthropic: { thinking: { type: "enabled", budgetTokens: 4096 } },
+        },
+        maxOutputTokens: 16384,
+      };
+    }
+    case "google": {
+      // Gemini 2.5 series; includeThoughts surfaces the thought summaries.
+      if (!/gemini-2\.5/.test(id)) return {};
+      return {
+        providerOptions: {
+          google: { thinkingConfig: { includeThoughts: true } },
+        },
+      };
+    }
+    case "openai": {
+      // Reasoning models (o-series, gpt-5*); reasoningSummary surfaces thoughts.
+      const isReasoning = /^o\d/.test(id) || id.includes("gpt-5");
+      if (!isReasoning) return {};
+      return { providerOptions: { openai: { reasoningSummary: "auto" } } };
+    }
+    default:
+      return {};
   }
 }
 

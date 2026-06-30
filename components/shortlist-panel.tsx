@@ -403,11 +403,23 @@ export function ShortlistPanel({
             {(run?.steps ?? []).map((step, i) => (
               <li key={i} className="flex items-start gap-2 text-sm">
                 <span aria-hidden className="mt-0.5 shrink-0">
-                  {step.type === "tool-call" ? "▸" : "✓"}
+                  {step.type === "reasoning"
+                    ? "💭"
+                    : step.type === "tool-call"
+                      ? "▸"
+                      : "✓"}
                 </span>
                 <span className="min-w-0 flex-1">
-                  <span className="font-medium text-navy-800/80">
-                    {toolLabel(step.tool)}
+                  <span
+                    className={
+                      step.type === "reasoning"
+                        ? "font-medium italic text-navy-800/55"
+                        : "font-medium text-navy-800/80"
+                    }
+                  >
+                    {step.type === "reasoning"
+                      ? "Thinking"
+                      : toolLabel(step.tool)}
                   </span>
                   <span
                     className="block truncate text-xs text-navy-800/45"

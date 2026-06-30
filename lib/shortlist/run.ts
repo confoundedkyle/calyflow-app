@@ -8,7 +8,11 @@ import {
 } from "ai";
 import { db } from "../db";
 import { env } from "../env";
-import { computeCostUsd, getLanguageModel } from "../providers";
+import {
+  computeCostUsd,
+  getLanguageModel,
+  reasoningSettings,
+} from "../providers";
 import { connectorLabel, effectiveConnectorCaps } from "../connectors";
 import {
   getActiveSourcingPlan,
@@ -348,6 +352,15 @@ export async function runShortlistSourcing(
       const lm = await getLanguageModel(provider, params.apiKey ?? "", model);
       const tools = buildTools(ctx, SOURCING_AGENT_TOOLS);
 
+      // Surface the model's reasoning so the trace reads Thought → Action →
+      // Observation. Provider-agnostic: this picks the right knob for whatever
+      // model the run uses (and is a no-op for models that don't reason). When
+      // reasoning IS enabled we must NOT force a tool call on step 0 — Anthropic
+      // rejects forced tool_choice while extended thinking is on, and a genuine
+      // "Thought" already replaces the planning-essay we were guarding against.
+      const reasoning = reasoningSettings(provider, model);
+      const reasoningOn = reasoning.providerOptions != null;
+
       // Stop when the project hits its qualified goal (total, so resumes count
       // earlier runs). `isGoalMet` is the plain predicate; `goalReached` wraps it
       // as a per-step StopCondition for generateText.
@@ -469,6 +482,7 @@ export async function runShortlistSourcing(
             system: systemPrompt,
             messages,
             tools,
+            ...reasoning,
             stopWhen: [
               stepCountIs(opts.stepCeiling - stepsUsed),
               goalReached,
@@ -476,10 +490,23 @@ export async function runShortlistSourcing(
             ],
             // Force the round to ACT first — never let it open with a planning
             // essay and stop. Step 0 must be a tool call; later steps are free.
+            // With reasoning on, the model thinks first by design (and the
+            // provider may reject a forced tool call), so leave step 0 free.
             prepareStep: ({ stepNumber }) =>
-              stepNumber === 0 ? { toolChoice: "required" } : undefined,
+              stepNumber === 0 && !reasoningOn
+                ? { toolChoice: "required" }
+                : undefined,
             abortSignal: AbortSignal.timeout(Math.min(540_000, remainingMs)),
-            onStepFinish: async ({ toolCalls, toolResults }) => {
+            onStepFinish: async ({ toolCalls, toolResults, reasoningText }) => {
+              // Record the "Thought" before its action so the trace stays
+              // Thought → Action → Observation.
+              if (reasoningText?.trim()) {
+                steps.push({
+                  type: "reasoning",
+                  tool: "",
+                  summary: summarize(reasoningText),
+                });
+              }
               for (const call of toolCalls ?? []) {
                 steps.push({
                   type: "tool-call",
@@ -572,6 +599,7 @@ export async function runShortlistSourcing(
           const diag = await generateText({
             model: lm,
             system: systemPrompt,
+            ...reasoning,
             messages: [
               {
                 role: "user",

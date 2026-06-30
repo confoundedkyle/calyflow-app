@@ -368,7 +368,12 @@ export interface WorkspaceAgent {
 
 /** One entry in an agent run's tool-call trace (stored in agent_runs.steps). */
 export interface AgentRunStep {
-  type: "tool-call" | "tool-result" | "tool-error";
+  /**
+   * `reasoning` is the model's "Thought" for a step — recorded before the
+   * tool-call/result so the trace reads Thought → Action → Observation. Its
+   * `tool` is empty.
+   */
+  type: "reasoning" | "tool-call" | "tool-result" | "tool-error";
   tool: string;
   summary: string;
 }

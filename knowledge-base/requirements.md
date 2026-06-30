@@ -117,7 +117,17 @@ library instructions into the copy. A library row retired from YAML orphans copi
   email/linkedin via partial unique indexes; `calyflow_list_candidates` lets the
   agent resume without duplicating). Stops at the goal (`countQualified ≥ goal`)
   or step cap; the USD budget (`lib/shortlist/budget.ts`, no conversion — same
-  unit as run cost) gates between runs. On finish it appends a `## Progress log` line
+  unit as run cost) gates between runs. The loop runs in phases — **FIND**
+  (breadth) → **VERIFY** (depth, enrich + re-score top finds) → **DIAGNOSE**
+  (tool-free escalation when short of goal) — each a multi-round continuation
+  bounded by step/budget ceilings (`lib/shortlist/run.ts`, `runPhase`). The live
+  step trace (polled by `ShortlistPanel`) reads **Thought → Action → Observation**:
+  `reasoningSettings(provider, model)` (`lib/providers.ts`) flips the right
+  per-provider reasoning knob (Anthropic extended thinking, Gemini 2.5
+  `includeThoughts`, OpenAI `reasoningSummary`; no-op elsewhere) and each step's
+  `reasoningText` is recorded as a `type:"reasoning"` `AgentRunStep`. With
+  reasoning on, step 0's forced `toolChoice` is dropped (Anthropic rejects forced
+  tool use while thinking). On finish it appends a `## Progress log` line
   to the Sourcing Plan, so re-running **continues where it left off**. The
   candidate table's **Fit** column is a human-in-the-loop feedback loop: the
   recruiter marks each candidate ✓ accepted / ✕ rejected (with an optional reason)
