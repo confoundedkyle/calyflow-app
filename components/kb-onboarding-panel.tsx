@@ -4,11 +4,8 @@ import { useRef, useState } from "react";
 import { usePathname, useRouter } from "next/navigation";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
-import { usePersistedSelection } from "@/lib/use-persisted-selection";
-import { DEFAULT_EFFORT, EFFORT_LEVELS, type Effort } from "@/lib/effort";
 import { KB_AREAS } from "@/lib/kb-onboarding/areas";
 import type { AgentChatTurn } from "@/lib/types";
-import { EffortSlider } from "./effort-slider";
 import { Button } from "./ui";
 
 interface Step {
@@ -72,11 +69,6 @@ export function KbOnboardingPanel({
 }) {
   const router = useRouter();
   const pathname = usePathname();
-  const [effort, setEffort] = usePersistedSelection(
-    "calyflow:kb-onboarding:effort",
-    DEFAULT_EFFORT,
-    (v) => EFFORT_LEVELS.some((l) => l.value === v),
-  );
   const [turns, setTurns] = useState<ChatTurn[]>(
     () => initialConversation?.turns.map(toChatTurn) ?? [],
   );
@@ -157,7 +149,7 @@ export function KbOnboardingPanel({
       const response = await fetch(ENDPOINT, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ task: text, conversationId, effort }),
+        body: JSON.stringify({ task: text, conversationId }),
       });
       if (!response.ok) {
         const body = await response.json().catch(() => null);
@@ -325,13 +317,6 @@ export function KbOnboardingPanel({
 
       {/* Composer */}
       <div className="border-t border-navy-800/8 bg-cream-50/60 px-5 py-4">
-        <div className="mb-3">
-          <EffortSlider
-            value={effort as Effort}
-            onChange={setEffort}
-            disabled={running}
-          />
-        </div>
         {error && (
           <p className="mb-2 rounded-chip bg-coral-400/12 px-3 py-2 text-sm text-coral-400">
             {error}
