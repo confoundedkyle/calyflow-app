@@ -38,7 +38,7 @@ describe("agenticPlatformModel", () => {
   });
 
   it("substitutes a capable model when the default is a mini", () => {
-    expect(agenticPlatformModel("openai", "gpt-5-mini")).toBe("gpt-5.1");
+    expect(agenticPlatformModel("openai", "gpt-5-mini")).toBe("gpt-5.4");
     expect(agenticPlatformModel("anthropic", "claude-haiku-4-5-mini")).toBe(
       "claude-sonnet-4-6",
     );

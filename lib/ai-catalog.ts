@@ -26,7 +26,7 @@ export function isAgenticModel(modelId: string): boolean {
 
 // Capable stand-in per provider when a configured platform model is a mini.
 const CAPABLE_PLATFORM_MODEL: Record<string, string> = {
-  openai: "gpt-5.1",
+  openai: "gpt-5.4",
   anthropic: "claude-sonnet-4-6",
   google: "gemini-3-pro-preview",
 };
