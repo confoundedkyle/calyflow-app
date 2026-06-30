@@ -1,24 +1,17 @@
-// Pure CSV helpers for the Shortlist email-enrichment round-trip: export the
+// CSV helpers for the Shortlist email-enrichment round-trip: export the
 // candidates that still need an email (with their LinkedIn URLs) to a CSV the
 // recruiter runs through ContactOut / Hunter / similar, then import the enriched
-// file back. No server-only imports — these run in the browser (download +
-// parse) and on the server (import action), so both agree on the format.
+// file back. Tool exports vary wildly (ContactOut alone has "Personal Email",
+// "Other Personal Emails", "Work Email", "Work Email Status", …), so the import
+// maps columns with an AI agent (lib/actions/enrichment.ts) and falls back to
+// the heuristic mapping here. Pure + dependency-free so it runs in the browser
+// (download) and on the server (import), and is fully unit-tested.
 
 /** One row of the exported "needs email" CSV. */
 export interface EnrichmentExportRow {
   id: string;
   name: string | null;
   linkedin: string | null;
-}
-
-/** One usable row parsed back from an enriched CSV. */
-export interface EnrichmentImportRow {
-  /** Our candidate id, if the enrichment tool preserved the column. */
-  id: string | null;
-  /** The LinkedIn URL the email belongs to (normalized for matching). */
-  linkedin: string | null;
-  email: string;
-  name: string | null;
 }
 
 const EXPORT_HEADERS = ["calyflow_id", "name", "linkedin_url", "email"] as const;
@@ -42,19 +35,20 @@ export function buildEnrichmentCsv(rows: EnrichmentExportRow[]): string {
 }
 
 /** Minimal RFC-4180-ish CSV parser: handles quoted fields, escaped quotes
- *  (`""`), and both `\n` and `\r\n` line endings. Returns a table of rows. */
+ *  (`""`), both `\n` and `\r\n` line endings, and a leading BOM. */
 export function parseCsv(text: string): string[][] {
+  const s = text.charCodeAt(0) === 0xfeff ? text.slice(1) : text;
   const rows: string[][] = [];
   let row: string[] = [];
   let field = "";
   let inQuotes = false;
   let sawAny = false;
 
-  for (let i = 0; i < text.length; i++) {
-    const c = text[i];
+  for (let i = 0; i < s.length; i++) {
+    const c = s[i];
     if (inQuotes) {
       if (c === '"') {
-        if (text[i + 1] === '"') {
+        if (s[i + 1] === '"') {
           field += '"';
           i++;
         } else {
@@ -85,7 +79,6 @@ export function parseCsv(text: string): string[][] {
       sawAny = true;
     }
   }
-  // Flush a trailing field/row that wasn't terminated by a newline.
   if (sawAny || field.length > 0 || row.length > 0) {
     row.push(field);
     rows.push(row);
@@ -93,37 +86,20 @@ export function parseCsv(text: string): string[][] {
   return rows;
 }
 
-/** Index of the first header matching any of `patterns` (lower-cased, trimmed). */
-function detectColumn(headers: string[], patterns: RegExp[]): number {
-  const norm = headers.map((h) => h.trim().toLowerCase());
-  for (const p of patterns) {
-    const i = norm.findIndex((h) => p.test(h));
-    if (i !== -1) return i;
+const isBlankRow = (row: string[]) => row.every((c) => !c || c.trim() === "");
+
+export interface DetectedHeader {
+  index: number;
+  cells: string[];
+}
+
+/** The header is the first non-blank row (tool exports occasionally prefix a
+ *  blank line or leading empty column). */
+export function detectHeader(rows: string[][]): DetectedHeader | null {
+  for (let i = 0; i < rows.length; i++) {
+    if (!isBlankRow(rows[i])) return { index: i, cells: rows[i] };
   }
-  return -1;
-}
-
-/** Pick the best email column: prefer a work/business email, then a plain
- *  "email", then a personal one — so we save the most outreach-appropriate
- *  address regardless of how the tool labelled its columns. */
-export function detectEmailColumn(headers: string[]): number {
-  return detectColumn(headers, [
-    /work.*e-?mail|business.*e-?mail/,
-    /^e-?mail$|email.*address|^e-?mail\b/,
-    /e-?mail/,
-  ]);
-}
-
-export function detectLinkedinColumn(headers: string[]): number {
-  return detectColumn(headers, [/linkedin/, /profile.*url|profile$/, /\burl\b/]);
-}
-
-export function detectIdColumn(headers: string[]): number {
-  return detectColumn(headers, [/calyflow_?id/, /^id$|candidate.*id/]);
-}
-
-function detectNameColumn(headers: string[]): number {
-  return detectColumn(headers, [/full.?name/, /^name$/, /name/]);
+  return null;
 }
 
 /** Normalize a LinkedIn URL for matching: drop scheme, `www.`, query string,
@@ -150,53 +126,175 @@ export function canonicalLinkedinUrl(
   if (!url) return null;
   const s = url.trim();
   if (!s || !/linkedin\.com/i.test(s)) return s || null;
-  // Split path from the query/fragment, ensure exactly one trailing slash, rejoin.
   const [, path = s, suffix = ""] = s.match(/^([^?#]*)([?#].*)?$/) ?? [];
   return `${path.replace(/\/+$/, "")}/${suffix}`;
 }
 
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
-export interface ParseEnrichmentResult {
-  rows: EnrichmentImportRow[];
-  /** False when no email column could be found — surfaced as a clear error. */
-  hasEmailColumn: boolean;
-  /** Total non-empty data rows seen (for "found N emails of M rows" messaging). */
-  totalRows: number;
+// --- Column mapping (AI + heuristic) --------------------------------------
+
+/** The fields an enriched-CSV column can map to. `*_email` are kept distinct so
+ *  we can prefer a personal address; everything unmapped is retained verbatim. */
+export const ENRICHMENT_FIELDS = [
+  "calyflow_id",
+  "name",
+  "linkedin_url",
+  "personal_email",
+  "work_email",
+  "other_email",
+  "phone",
+] as const;
+export type EnrichmentField = (typeof ENRICHMENT_FIELDS)[number];
+
+export function isEnrichmentField(v: unknown): v is EnrichmentField {
+  return (
+    typeof v === "string" &&
+    (ENRICHMENT_FIELDS as readonly string[]).includes(v)
+  );
 }
 
-/** Parse an enriched CSV back into usable rows. Tool-agnostic: it sniffs the
- *  email / linkedin / id / name columns by header name, so a ContactOut export,
- *  a Hunter export, or a hand-made sheet all work. Rows without a valid email
- *  are skipped. */
-export function parseEnrichmentCsv(text: string): ParseEnrichmentResult {
-  const table = parseCsv(text).filter(
-    (r) => !(r.length === 1 && r[0].trim() === ""),
-  );
-  if (table.length < 2) {
-    return { rows: [], hasEmailColumn: table.length > 0, totalRows: 0 };
-  }
-  const headers = table[0];
-  const emailCol = detectEmailColumn(headers);
-  if (emailCol === -1) {
-    return { rows: [], hasEmailColumn: false, totalRows: table.length - 1 };
-  }
-  const linkedinCol = detectLinkedinColumn(headers);
-  const idCol = detectIdColumn(headers);
-  const nameCol = detectNameColumn(headers);
+function isEmailField(f: EnrichmentField | null): boolean {
+  return f === "personal_email" || f === "work_email" || f === "other_email";
+}
 
-  const rows: EnrichmentImportRow[] = [];
-  for (let i = 1; i < table.length; i++) {
-    const r = table[i];
-    const at = (col: number) => (col !== -1 ? (r[col] ?? "").trim() : "");
-    const email = at(emailCol);
-    if (!email || !EMAIL_RE.test(email)) continue;
-    rows.push({
-      id: at(idCol) || null,
-      linkedin: at(linkedinCol) || null,
-      email,
-      name: at(nameCol) || null,
+/** True when a mapping resolves at least one email column. */
+export function mappingHasEmail(mapping: (EnrichmentField | null)[]): boolean {
+  return mapping.some(isEmailField);
+}
+
+/** Heuristic header → field mapping, used when no AI provider is configured (or
+ *  the AI mapping comes back without an email column). Recognises the common
+ *  shapes from ContactOut / Hunter / Findymail / etc. and, crucially, ignores
+ *  status/validation columns like "Work Email Status". */
+export function heuristicEnrichmentMapping(
+  headers: string[],
+): (EnrichmentField | null)[] {
+  return headers.map((raw) => {
+    const h = raw.trim().toLowerCase();
+    if (!h) return null;
+    if (/calyflow[\s_]?id/.test(h) || h === "id" || /candidate.*id/.test(h))
+      return "calyflow_id";
+    if (/linkedin/.test(h) || /profile.*url/.test(h) || h === "url" || h === "profile")
+      return "linkedin_url";
+    if (/e-?mail/.test(h)) {
+      // "Work Email Status", "Email Validity", "Email Type" etc. aren't addresses.
+      if (/status|valid|verif|type|score|deliver|quality|grade/.test(h))
+        return null;
+      if (/personal/.test(h)) return "personal_email";
+      if (/work|business|company|professional/.test(h)) return "work_email";
+      return "other_email";
+    }
+    if (/phone|mobile|\btel\b|cell/.test(h)) return "phone";
+    if (/full.?name/.test(h) || h === "name") return "name";
+    return null;
+  });
+}
+
+/** Coerce an AI-produced mapping (array of field strings / null) to our shape,
+ *  aligned to `headerCount`. Unknown values become null. */
+export function coerceEnrichmentMapping(
+  raw: unknown,
+  headerCount: number,
+): (EnrichmentField | null)[] {
+  const arr = Array.isArray(raw) ? raw : [];
+  return Array.from({ length: headerCount }, (_, i) =>
+    isEnrichmentField(arr[i]) ? (arr[i] as EnrichmentField) : null,
+  );
+}
+
+/** A candidate's enriched data parsed from one CSV row. */
+export interface EnrichmentImportRecord {
+  /** Our candidate id, if the tool preserved the column. */
+  id: string | null;
+  /** LinkedIn URL, for matching when there's no id. */
+  linkedin: string | null;
+  name: string | null;
+  /** The email to store on the candidate — a personal address is preferred. */
+  primaryEmail: string | null;
+  emails: { personal: string[]; work: string[]; other: string[] };
+  phone: string | null;
+  /** Unmapped, non-empty columns kept verbatim under their original header. */
+  extra: Record<string, string>;
+}
+
+const dedupe = (arr: string[]) => Array.from(new Set(arr));
+
+/** A cell may hold several addresses ("a@x.com, b@y.com") — split + validate. */
+function splitEmails(value: string): string[] {
+  return value
+    .split(/[;,/]/)
+    .map((e) => e.trim())
+    .filter((e) => EMAIL_RE.test(e));
+}
+
+/**
+ * Build enriched records from CSV data rows + a column→field mapping. A row is
+ * kept only if it yields at least one email (there's nothing to save otherwise).
+ * The primary email prefers personal → work → other; all addresses, the phone,
+ * and every unmapped column are retained for the candidate's record.
+ */
+export function rowsToEnrichmentRecords(
+  dataRows: string[][],
+  headers: string[],
+  mapping: (EnrichmentField | null)[],
+): EnrichmentImportRecord[] {
+  const out: EnrichmentImportRecord[] = [];
+  for (const row of dataRows) {
+    if (isBlankRow(row)) continue;
+    let id: string | null = null;
+    let linkedin: string | null = null;
+    let name: string | null = null;
+    let phone: string | null = null;
+    const personal: string[] = [];
+    const work: string[] = [];
+    const other: string[] = [];
+    const extra: Record<string, string> = {};
+
+    headers.forEach((header, col) => {
+      const value = (row[col] ?? "").trim();
+      if (!value) return;
+      switch (mapping[col] ?? null) {
+        case "calyflow_id":
+          id ??= value;
+          break;
+        case "linkedin_url":
+          linkedin ??= value;
+          break;
+        case "name":
+          name ??= value;
+          break;
+        case "phone":
+          phone ??= value;
+          break;
+        case "personal_email":
+          personal.push(...splitEmails(value));
+          break;
+        case "work_email":
+          work.push(...splitEmails(value));
+          break;
+        case "other_email":
+          other.push(...splitEmails(value));
+          break;
+        default:
+          extra[header.trim() || `column_${col + 1}`] = value;
+      }
+    });
+
+    const p = dedupe(personal);
+    const w = dedupe(work);
+    const o = dedupe(other);
+    const primaryEmail = p[0] ?? w[0] ?? o[0] ?? null;
+    if (!primaryEmail) continue;
+    out.push({
+      id,
+      linkedin,
+      name,
+      primaryEmail,
+      emails: { personal: p, work: w, other: o },
+      phone,
+      extra,
     });
   }
-  return { rows, hasEmailColumn: true, totalRows: table.length - 1 };
+  return out;
 }

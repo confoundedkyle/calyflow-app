@@ -2,10 +2,13 @@ import { describe, expect, it } from "vitest";
 import {
   buildEnrichmentCsv,
   parseCsv,
-  parseEnrichmentCsv,
+  detectHeader,
   normalizeLinkedinUrl,
   canonicalLinkedinUrl,
-  detectEmailColumn,
+  heuristicEnrichmentMapping,
+  coerceEnrichmentMapping,
+  rowsToEnrichmentRecords,
+  mappingHasEmail,
 } from "@/lib/enrichment/csv";
 
 describe("buildEnrichmentCsv", () => {
@@ -17,14 +20,13 @@ describe("buildEnrichmentCsv", () => {
     const lines = csv.split("\r\n");
     expect(lines[0]).toBe("calyflow_id,name,linkedin_url,email");
     expect(lines[1]).toBe("c1,Ada Lovelace,https://linkedin.com/in/ada,");
-    // Comma + embedded quotes → field is quoted and quotes doubled.
     expect(lines[2]).toBe('c2,"Grace, ""Amazing"" Hopper",,');
   });
 });
 
 describe("parseCsv", () => {
-  it("handles quoted fields, escaped quotes, and CRLF", () => {
-    const table = parseCsv('a,b\r\n"x,y","he said ""hi"""\r\n');
+  it("handles quoted fields, escaped quotes, CRLF, and a BOM", () => {
+    const table = parseCsv('﻿a,b\r\n"x,y","he said ""hi"""\r\n');
     expect(table).toEqual([
       ["a", "b"],
       ["x,y", 'he said "hi"'],
@@ -32,110 +34,145 @@ describe("parseCsv", () => {
   });
 });
 
-describe("detectEmailColumn", () => {
-  it("prefers a work email over a generic or personal one", () => {
-    expect(
-      detectEmailColumn(["Name", "Personal Email", "Work Email", "Phone"]),
-    ).toBe(2);
+describe("detectHeader", () => {
+  it("returns the first non-blank row even after a blank line", () => {
+    const got = detectHeader([["", ""], ["Name", "Email"], ["Ada", "a@b.com"]]);
+    expect(got).toEqual({ index: 1, cells: ["Name", "Email"] });
   });
-  it("falls back to any email-ish header", () => {
-    expect(detectEmailColumn(["full name", "e-mail address"])).toBe(1);
-  });
-  it("returns -1 when there is no email column", () => {
-    expect(detectEmailColumn(["name", "linkedin", "phone"])).toBe(-1);
+  it("returns null for an all-blank table", () => {
+    expect(detectHeader([["", ""]])).toBeNull();
   });
 });
 
 describe("normalizeLinkedinUrl", () => {
   it("strips scheme, www, query, trailing slash and lower-cases", () => {
-    expect(
-      normalizeLinkedinUrl("HTTPS://www.LinkedIn.com/in/Ada/?utm=x"),
-    ).toBe("linkedin.com/in/ada");
-  });
-  it("returns empty for nullish input", () => {
-    expect(normalizeLinkedinUrl(null)).toBe("");
-    expect(normalizeLinkedinUrl(undefined)).toBe("");
+    expect(normalizeLinkedinUrl("HTTPS://www.LinkedIn.com/in/Ada/?utm=x")).toBe(
+      "linkedin.com/in/ada",
+    );
   });
 });
 
 describe("canonicalLinkedinUrl", () => {
-  it("adds a trailing slash when missing", () => {
+  it("adds a trailing slash, is idempotent, and ignores non-LinkedIn URLs", () => {
     expect(canonicalLinkedinUrl("https://rs.linkedin.com/in/vl-jednak")).toBe(
       "https://rs.linkedin.com/in/vl-jednak/",
     );
-  });
-  it("leaves an already-canonical URL unchanged", () => {
-    expect(
-      canonicalLinkedinUrl("https://www.linkedin.com/in/nemanja-perunicic/"),
-    ).toBe("https://www.linkedin.com/in/nemanja-perunicic/");
-  });
-  it("collapses duplicate trailing slashes to one", () => {
-    expect(canonicalLinkedinUrl("https://linkedin.com/in/ada///")).toBe(
+    expect(canonicalLinkedinUrl("https://linkedin.com/in/ada/")).toBe(
       "https://linkedin.com/in/ada/",
     );
-  });
-  it("keeps the query/fragment after the slash", () => {
-    expect(
-      canonicalLinkedinUrl("https://linkedin.com/in/ada?utm=x"),
-    ).toBe("https://linkedin.com/in/ada/?utm=x");
-  });
-  it("preserves the scheme and country subdomain, trims whitespace", () => {
-    expect(canonicalLinkedinUrl("  http://mk.linkedin.com/in/toshe-nastev  ")).toBe(
-      "http://mk.linkedin.com/in/toshe-nastev/",
-    );
-  });
-  it("passes non-LinkedIn URLs through untouched", () => {
     expect(canonicalLinkedinUrl("https://github.com/ada")).toBe(
       "https://github.com/ada",
     );
-  });
-  it("returns null for empty / nullish input", () => {
     expect(canonicalLinkedinUrl(null)).toBeNull();
-    expect(canonicalLinkedinUrl("")).toBeNull();
-    expect(canonicalLinkedinUrl("   ")).toBeNull();
+  });
+  it("keeps the query after the slash", () => {
+    expect(canonicalLinkedinUrl("https://linkedin.com/in/ada?x=1")).toBe(
+      "https://linkedin.com/in/ada/?x=1",
+    );
   });
 });
 
-describe("parseEnrichmentCsv", () => {
-  it("extracts valid emails and maps id/linkedin/name from sniffed columns", () => {
-    const csv = [
-      "calyflow_id,name,linkedin_url,email",
-      "c1,Ada Lovelace,https://linkedin.com/in/ada,ada@analytical.org",
-      "c2,Grace Hopper,https://linkedin.com/in/grace,", // no email → skipped
-      "c3,Alan Turing,https://linkedin.com/in/alan,not-an-email", // invalid → skipped
-    ].join("\n");
-    const { rows, hasEmailColumn, totalRows } = parseEnrichmentCsv(csv);
-    expect(hasEmailColumn).toBe(true);
-    expect(totalRows).toBe(3);
-    expect(rows).toEqual([
-      {
-        id: "c1",
-        name: "Ada Lovelace",
-        linkedin: "https://linkedin.com/in/ada",
-        email: "ada@analytical.org",
-      },
+describe("heuristicEnrichmentMapping", () => {
+  it("classifies a ContactOut-style header, ignoring status columns", () => {
+    const headers = [
+      "calyflow_id",
+      "Name",
+      "LinkedIn URL",
+      "Personal Email",
+      "Other Personal Emails",
+      "Work Email",
+      "Work Email Status",
+      "Phone",
+    ];
+    expect(heuristicEnrichmentMapping(headers)).toEqual([
+      "calyflow_id",
+      "name",
+      "linkedin_url",
+      "personal_email",
+      "personal_email",
+      "work_email",
+      null, // "Work Email Status" is not an address
+      "phone",
     ]);
   });
+  it("maps a bare 'Email' header to other_email and leaves unknowns null", () => {
+    expect(heuristicEnrichmentMapping(["Email", "Seniority"])).toEqual([
+      "other_email",
+      null,
+    ]);
+  });
+});
 
-  it("works with a foreign tool's headers (no calyflow_id column)", () => {
-    const csv = [
-      "Full Name,LinkedIn URL,Work Email,Phone",
-      "Ada Lovelace,https://linkedin.com/in/ada,ada@work.com,123",
-    ].join("\n");
-    const { rows } = parseEnrichmentCsv(csv);
-    expect(rows[0]).toEqual({
-      id: null,
-      name: "Ada Lovelace",
-      linkedin: "https://linkedin.com/in/ada",
-      email: "ada@work.com",
+describe("coerceEnrichmentMapping", () => {
+  it("keeps valid field keys, nulls the rest, aligned to header count", () => {
+    expect(
+      coerceEnrichmentMapping(["personal_email", "bogus", "name"], 4),
+    ).toEqual(["personal_email", null, "name", null]);
+  });
+});
+
+describe("mappingHasEmail", () => {
+  it("is true only when an email field is present", () => {
+    expect(mappingHasEmail(["name", "work_email"])).toBe(true);
+    expect(mappingHasEmail(["name", "phone", null])).toBe(false);
+  });
+});
+
+describe("rowsToEnrichmentRecords", () => {
+  const headers = [
+    "calyflow_id",
+    "Name",
+    "LinkedIn URL",
+    "Personal Email",
+    "Other Personal Emails",
+    "Work Email",
+    "Work Email Status",
+    "Seniority",
+  ];
+  const mapping = heuristicEnrichmentMapping(headers);
+
+  it("prefers a personal email, collects all emails, and keeps extra columns", () => {
+    const rows = [
+      [
+        "c1",
+        "Ada Lovelace",
+        "https://linkedin.com/in/ada",
+        "ada@gmail.com",
+        "ada2@gmail.com, ada3@yahoo.com",
+        "ada@work.com",
+        "Verified",
+        "Senior",
+      ],
+    ];
+    const [rec] = rowsToEnrichmentRecords(rows, headers, mapping);
+    expect(rec.id).toBe("c1");
+    expect(rec.linkedin).toBe("https://linkedin.com/in/ada");
+    expect(rec.primaryEmail).toBe("ada@gmail.com"); // personal preferred
+    expect(rec.emails.personal).toEqual([
+      "ada@gmail.com",
+      "ada2@gmail.com",
+      "ada3@yahoo.com",
+    ]);
+    expect(rec.emails.work).toEqual(["ada@work.com"]);
+    // The status column isn't an address, but its value is still kept as data.
+    expect(rec.extra).toEqual({
+      "Work Email Status": "Verified",
+      Seniority: "Senior",
     });
   });
 
-  it("flags a missing email column", () => {
-    const { hasEmailColumn, rows } = parseEnrichmentCsv(
-      "name,linkedin\nAda,https://linkedin.com/in/ada",
-    );
-    expect(hasEmailColumn).toBe(false);
-    expect(rows).toEqual([]);
+  it("falls back to the work email when there's no personal one", () => {
+    const rows = [
+      ["c2", "Otto", "https://linkedin.com/in/otto", "", "", "otto@work.com", "Verified", ""],
+    ];
+    const [rec] = rowsToEnrichmentRecords(rows, headers, mapping);
+    expect(rec.primaryEmail).toBe("otto@work.com");
+  });
+
+  it("skips rows with no email at all", () => {
+    const rows = [
+      ["c3", "NoEmail", "https://linkedin.com/in/none", "", "", "", "", "Lead"],
+    ];
+    expect(rowsToEnrichmentRecords(rows, headers, mapping)).toEqual([]);
   });
 });

@@ -1,10 +1,13 @@
 "use server";
 
+import { generateText } from "ai";
+import { z } from "zod";
 import { revalidatePath } from "next/cache";
 import { requireSession } from "../auth";
 import { db } from "../db";
 import { getConnection, getProject, listConnections } from "../queries";
 import { getValidAccessToken } from "../integrations";
+import { getLanguageModel, resolveRunProviders } from "../providers";
 import {
   LIVE_EMAIL_ENRICHMENT_PROVIDERS,
   connectorLabel,
@@ -12,9 +15,16 @@ import {
 import { connectedProvidersFrom } from "../run-items";
 import { findEmailViaProvider } from "../enrichment/find-email";
 import {
+  ENRICHMENT_FIELDS,
   canonicalLinkedinUrl,
+  coerceEnrichmentMapping,
+  detectHeader,
+  heuristicEnrichmentMapping,
+  mappingHasEmail,
   normalizeLinkedinUrl,
-  type EnrichmentImportRow,
+  parseCsv,
+  rowsToEnrichmentRecords,
+  type EnrichmentField,
 } from "../enrichment/csv";
 import type { Candidate } from "../types";
 
@@ -131,26 +141,125 @@ export async function findCandidateEmailAction(
 export interface ImportEmailsActionResult {
   /** Candidates whose (previously empty) email we filled in. */
   updated: number;
-  /** Rows that matched a candidate already holding an email — left untouched. */
-  alreadyHadEmail: number;
-  /** Rows whose email matched no candidate in this project. */
+  /** Matched candidates that already had an email — extra data still merged. */
+  enriched: number;
+  /** Rows whose data matched no candidate in this project. */
   unmatched: number;
+  /** Whether the column mapping was produced by the AI agent (vs. heuristic). */
+  usedAi: boolean;
+}
+
+/** Pull the first JSON array out of an LLM response (tolerating code fences). */
+function extractJsonArray(text: string): unknown {
+  const start = text.indexOf("[");
+  const end = text.lastIndexOf("]");
+  if (start === -1 || end === -1 || end < start) return [];
+  try {
+    return JSON.parse(text.slice(start, end + 1));
+  } catch {
+    return [];
+  }
 }
 
 /**
- * Save emails from an enriched CSV back onto the project's candidates. Matches
- * each row to a candidate by our `calyflow_id` column when present, else by a
- * normalized LinkedIn URL. Only fills candidates that don't already have an
- * email (the export covered exactly those), so a re-import never clobbers a
- * confirmed address.
+ * Map an enriched CSV's columns to our fields with an LLM — the "resourceful"
+ * path that copes with any tool's column names (ContactOut's "Personal Email" /
+ * "Work Email" / "Work Email Status", Hunter's layout, etc.). Returns one field
+ * key (or null) per header, or null when no AI provider is configured so the
+ * caller falls back to the heuristic mapping. Tiny payload: headers + a few
+ * sample rows.
  */
-export async function importEnrichedEmailsAction(
+async function aiEnrichmentColumnMapping(
+  workspaceId: string,
+  headers: string[],
+  sampleRows: string[][],
+): Promise<(EnrichmentField | null)[] | null> {
+  const { providers } = await resolveRunProviders(workspaceId);
+  const primary = providers[0];
+  if (!primary) return null;
+
+  const model = await getLanguageModel(
+    primary.row.provider,
+    primary.apiKey,
+    primary.model,
+  );
+  const samples = sampleRows.slice(0, 3);
+  const prompt = [
+    "You map spreadsheet columns from a contact-enrichment export to a schema.",
+    "Allowed target field keys (use these exact strings, or null when a column has no good match):",
+    ENRICHMENT_FIELDS.join(", "),
+    "Notes:",
+    "- personal_email = a personal address (e.g. @gmail.com, @yahoo.com); a column may hold several, comma-separated.",
+    "- work_email = a work/business/company address.",
+    "- other_email = an email column that isn't clearly personal or work.",
+    "- Do NOT map status/validation/quality columns (e.g. \"Work Email Status\", \"Email Validity\") — return null for those.",
+    "- calyflow_id = our own id column; linkedin_url = a LinkedIn profile URL; name = full name; phone = phone/mobile.",
+    `CSV headers, in order: ${JSON.stringify(headers)}`,
+    samples.length
+      ? `Sample rows:\n${samples.map((r) => JSON.stringify(r)).join("\n")}`
+      : "",
+    `Return ONLY a JSON array of exactly ${headers.length} items — item i is the field key (or null) for header i. No prose, no code fences.`,
+  ]
+    .filter(Boolean)
+    .join("\n");
+
+  const { text } = await generateText({ model, prompt, maxOutputTokens: 600 });
+  return coerceEnrichmentMapping(extractJsonArray(text), headers.length);
+}
+
+/**
+ * Import an enriched CSV back onto the project's candidates. Columns are mapped
+ * by the AI agent (heuristic fallback), so any tool's export works. For each
+ * matched candidate (by `calyflow_id`, else normalized LinkedIn URL) we fill the
+ * email when it's empty — preferring a personal address when several are
+ * present — and merge ALL of the enriched data (every email, phone, and the
+ * remaining columns) onto the candidate's record for later use in the talent
+ * pool. Never clobbers an email a candidate already has.
+ */
+export async function importEnrichedCsvAction(
   projectId: string,
-  rows: EnrichmentImportRow[],
+  csvText: string,
 ): Promise<ImportEmailsActionResult> {
   const session = await requireSession();
   const project = await getProject(session.workspaceId, projectId);
   if (!project) throw new Error("Project not found");
+
+  const text = z.string().min(1).max(2_000_000).parse(csvText);
+  const table = parseCsv(text);
+  const header = detectHeader(table);
+  if (!header) throw new Error("That file looks empty.");
+  const headers = header.cells;
+  const dataRows = table.slice(header.index + 1);
+
+  // Prefer the AI mapping; fall back to the heuristic if there's no provider or
+  // the AI mapping didn't find an email column.
+  let usedAi = false;
+  let mapping = heuristicEnrichmentMapping(headers);
+  try {
+    const ai = await aiEnrichmentColumnMapping(
+      session.workspaceId,
+      headers,
+      dataRows,
+    );
+    if (ai && mappingHasEmail(ai)) {
+      mapping = ai;
+      usedAi = true;
+    }
+  } catch (err) {
+    console.warn("AI column mapping failed, using heuristic:", err);
+  }
+  if (!mappingHasEmail(mapping)) {
+    throw new Error(
+      "Couldn't find an email column in that file. Make sure the enriched CSV has a column with email addresses.",
+    );
+  }
+
+  const records = rowsToEnrichmentRecords(dataRows, headers, mapping);
+  if (records.length === 0) {
+    throw new Error(
+      "No email addresses found in that file. Did the enrichment tool fill an email column?",
+    );
+  }
 
   const { data, error } = await db()
     .from("candidates")
@@ -167,15 +276,14 @@ export async function importEnrichedEmailsAction(
   }
 
   let updated = 0;
-  let alreadyHadEmail = 0;
+  let enriched = 0;
   let unmatched = 0;
-  // Don't write the same candidate twice if duplicate rows resolve to it.
-  const handled = new Set<string>();
+  const handled = new Set<string>(); // a candidate is written at most once
 
-  for (const row of rows) {
+  for (const rec of records) {
     const match =
-      (row.id ? byId.get(row.id) : undefined) ??
-      byLinkedin.get(normalizeLinkedinUrl(row.linkedin));
+      (rec.id ? byId.get(rec.id) : undefined) ??
+      byLinkedin.get(normalizeLinkedinUrl(rec.linkedin));
     if (!match) {
       unmatched++;
       continue;
@@ -183,29 +291,32 @@ export async function importEnrichedEmailsAction(
     if (handled.has(match.id)) continue;
     handled.add(match.id);
 
-    if (match.email?.trim()) {
-      alreadyHadEmail++;
-      continue;
-    }
+    const fillEmail = !match.email?.trim();
+    const raw = mergeRaw(match.raw, {
+      email_source: "csv_import",
+      email_enriched_at: new Date().toISOString(),
+      enrichment: {
+        personal_emails: rec.emails.personal,
+        work_emails: rec.emails.work,
+        other_emails: rec.emails.other,
+        phone: rec.phone,
+        fields: rec.extra,
+      },
+    });
     const { error: upErr } = await db()
       .from("candidates")
-      .update({
-        email: row.email,
-        raw: mergeRaw(match.raw, {
-          email_source: "csv_import",
-          email_enriched_at: new Date().toISOString(),
-        }),
-      })
+      .update(fillEmail ? { email: rec.primaryEmail, raw } : { raw })
       .eq("id", match.id);
     if (upErr) throw upErr;
-    updated++;
+    if (fillEmail) updated++;
+    else enriched++;
   }
 
-  if (updated > 0) {
+  if (updated + enriched > 0) {
     revalidatePath(
       `/clients/${project.client_id}/projects/${projectId}/shortlist`,
     );
   }
 
-  return { updated, alreadyHadEmail, unmatched };
+  return { updated, enriched, unmatched, usedAi };
 }

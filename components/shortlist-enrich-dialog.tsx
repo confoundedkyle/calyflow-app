@@ -7,10 +7,9 @@ import type { Candidate } from "@/lib/types";
 import {
   buildEnrichmentCsv,
   canonicalLinkedinUrl,
-  parseEnrichmentCsv,
   type EnrichmentExportRow,
 } from "@/lib/enrichment/csv";
-import { importEnrichedEmailsAction } from "@/lib/actions/enrichment";
+import { importEnrichedCsvAction } from "@/lib/actions/enrichment";
 import { Button } from "./ui";
 
 export interface ConnectedEnrichment {
@@ -99,24 +98,15 @@ export function ShortlistEnrichDialog({
     setImporting(true);
     try {
       const text = await file.text();
-      const parsed = parseEnrichmentCsv(text);
-      if (!parsed.hasEmailColumn) {
-        throw new Error(
-          "Couldn't find an email column in that file. Make sure the enriched CSV has a column with “email” in its name.",
-        );
-      }
-      if (parsed.rows.length === 0) {
-        throw new Error(
-          "No email addresses found in that file. Did the enrichment tool fill the email column?",
-        );
-      }
-      const res = await importEnrichedEmailsAction(projectId, parsed.rows);
+      const res = await importEnrichedCsvAction(projectId, text);
       const parts = [`Saved ${res.updated} email${res.updated === 1 ? "" : "s"}`];
-      if (res.alreadyHadEmail > 0)
-        parts.push(`${res.alreadyHadEmail} already had one`);
+      if (res.enriched > 0)
+        parts.push(`${res.enriched} already had one (extra data added)`);
       if (res.unmatched > 0)
         parts.push(`${res.unmatched} didn't match a candidate`);
-      setResult(parts.join(" · "));
+      setResult(
+        `${parts.join(" · ")}${res.usedAi ? " · columns mapped by AI" : ""}`,
+      );
       router.refresh();
     } catch (err) {
       setError(err instanceof Error ? err.message : "Could not import the file.");
@@ -277,9 +267,12 @@ export function ShortlistEnrichDialog({
               Import the enriched file
             </h4>
             <p className="mb-3 text-sm text-navy-800/60">
-              Run the CSV through your enrichment tool, then upload the result
-              here. We match each email back to the right candidate (by the
-              hidden id or the LinkedIn URL) and save it to the shortlist.
+              Run the CSV through your enrichment tool, then upload the result —
+              in whatever format it exports. An AI agent figures out the columns
+              (personal vs work email, phone, and more), so you don’t have to
+              reformat anything. We match each row back to the right candidate
+              (by the hidden id or the LinkedIn URL), save a personal email when
+              there’s one, and keep the rest of the data on the candidate.
             </p>
             <input
               ref={fileRef}

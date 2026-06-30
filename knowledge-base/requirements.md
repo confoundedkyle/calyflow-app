@@ -147,10 +147,16 @@ library instructions into the copy. A library row retired from YAML orphans copi
   non-tech recruiters — the "Find emails" dialog downloads the good-fit candidates
   that still need an email (name + LinkedIn URL + blank email column + a hidden
   `calyflow_id` for exact re-matching), the recruiter enriches it in ContactOut /
-  Hunter / similar, then re-imports; `importEnrichedEmailsAction` sniffs the
-  email/linkedin/id columns (`lib/enrichment/csv.ts`, pure + unit-tested) and saves
-  emails back onto candidates (matched by id then normalized LinkedIn URL, only
-  filling empty addresses). "Good fit" = accepted (✓) or qualified, never rejected.
+  Hunter / similar, then re-imports; `importEnrichedCsvAction` takes the raw CSV and
+  maps its columns with an **AI agent** (`aiEnrichmentColumnMapping`, mirroring the
+  talent-pool `aiMapColumnsAction`; heuristic fallback `heuristicEnrichmentMapping`
+  when no AI provider is configured or the AI mapping finds no email column — both
+  in `lib/enrichment/csv.ts`, pure + unit-tested). This copes with any tool's export
+  (ContactOut's `Personal Email` / `Work Email` / `Work Email Status` …), prefers a
+  **personal** address as the candidate's primary email, and keeps the rest of the
+  data (all emails, phone, and unmapped columns) under `raw.enrichment` for later
+  talent-pool use. Matched by id then normalized LinkedIn URL; never clobbers an
+  existing email. "Good fit" = accepted (✓) or qualified, never rejected.
   When no enrichment tool is connected, the button/dialog explains the options.
   LinkedIn URLs are stored in LinkedIn's canonical, **slash-terminated** form
   (`canonicalLinkedinUrl` in `lib/enrichment/csv.ts`, applied on save in
