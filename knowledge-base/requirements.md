@@ -140,8 +140,10 @@ library instructions into the copy. A library row retired from YAML orphans copi
   + `lib/actions/enrichment.ts`: (1) a per-row **Find email** button does a
   one-click LinkedIn→email lookup when a *live* enrichment connector is connected
   (`LIVE_EMAIL_ENRICHMENT_PROVIDERS` in `lib/connectors.ts` — ContactOut, Prospeo,
-  Nymeria — dispatched in `lib/enrichment/find-email.ts`, which regex-extracts the
-  email from the adapter's text); (2) a tool-agnostic **CSV round-trip** for
+  Nymeria, SignalHire — dispatched in `lib/enrichment/find-email.ts`, which
+  regex-extracts the email from the adapter's text; a provider qualifies as *live*
+  only if its adapter resolves a LinkedIn URL synchronously — SignalHire does via
+  `withoutWaterfall`); (2) a tool-agnostic **CSV round-trip** for
   non-tech recruiters — the "Find emails" dialog downloads the good-fit candidates
   that still need an email (name + LinkedIn URL + blank email column + a hidden
   `calyflow_id` for exact re-matching), the recruiter enriches it in ContactOut /

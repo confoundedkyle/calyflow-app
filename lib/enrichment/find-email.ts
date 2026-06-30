@@ -2,6 +2,7 @@ import "server-only";
 import { contactoutAdapter } from "../integrations/contactout";
 import { prospeoAdapter } from "../integrations/prospeo";
 import { nymeriaAdapter } from "../integrations/nymeria";
+import { signalhireAdapter } from "../integrations/signalhire";
 
 // One-click email enrichment for the Shortlist "Find email" button: given a
 // candidate's LinkedIn URL and a connected enrichment provider, resolve an
@@ -44,6 +45,14 @@ export async function findEmailViaProvider(
     }
     case "nymeria": {
       const r = await nymeriaAdapter.enrichPerson(token, { linkedinUrl });
+      return { email: extractEmail(r.text), detail: r.text };
+    }
+    case "signalhire": {
+      // SignalHire takes a single identifier (LinkedIn URL works) and returns
+      // synchronously thanks to the adapter's withoutWaterfall flag.
+      const r = await signalhireAdapter.enrichPerson(token, {
+        identifier: linkedinUrl,
+      });
       return { email: extractEmail(r.text), detail: r.text };
     }
     default:

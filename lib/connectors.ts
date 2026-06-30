@@ -258,6 +258,7 @@ export const LIVE_EMAIL_ENRICHMENT_PROVIDERS = [
   "contactout",
   "prospeo",
   "nymeria",
+  "signalhire",
 ] as const;
 
 /** The broader set of connectors marketed as email / contact finders. Used to
