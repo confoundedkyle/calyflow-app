@@ -42,73 +42,30 @@ export function parseSignalHireLadderSpec(raw: string): SignalHireLadderSpec {
   return specSchema.parse(JSON.parse(raw)) as SignalHireLadderSpec;
 }
 
-// Committed ladder — an advanced, cost/speed-aware default. SignalHire search is
-// free, so "cost" here is COMPUTE + latency: run the fewest, most-precise
-// searches first, pull big pages only on high-signal tiers, dedupe identical
-// queries, and stop the moment the target is met. Tiers descend from tightest
-// (exact title + all skills + location) to broadest (skills-only, then geo-wide),
-// weighted so the tightest matches rank first. The driver runs a tier's searches
-// concurrently and short-circuits between tiers.
-//
-// Progression:
-//   1. exact title + ALL skills (AND) + location   — tightest, highest signal
-//   2. exact title at each target company + location — precise, employer-led
-//   3. exact title + location (skills dropped)       — broaden the must-haves
-//   4. adjacent/synonym title + skills + location    — widen the role
-//   5. skills/keywords only (OR) + location          — skill-led net, no title
-//   6. exact title + skills, NO location             — widen geography last
+// Committed ladder — deliberately BASIC: a plain title+skills keyword search,
+// then a broader skills-only pass. It just needs to work out of the box. The
+// advanced, tuned ladder (company fan-out, adjacent titles, geo-widening, per-
+// tier weighting) lives in the private `system-config` bucket
+// (sourcing/signalhire-ladder.json) and overrides this when provisioned.
 const GENERIC_SPEC: SignalHireLadderSpec = {
-  defaults: { targetCount: 25, maxSearches: 18, limit: 25, concurrency: 4 },
+  defaults: { targetCount: 25, maxSearches: 8, limit: 25, concurrency: 3 },
   tiers: [
     {
-      name: "exact title + all skills + location",
-      weight: 6,
-      titlesFrom: "currentTitles",
-      keywordsFrom: ["skills"],
-      keywordsJoin: "AND",
-      useLocation: true,
-      limit: 25,
-    },
-    {
-      name: "exact title at target companies",
-      weight: 5,
-      titlesFrom: "currentTitles",
-      companiesFrom: "companies",
-      useLocation: true,
-      limit: 15,
-      maxSearches: 6,
-    },
-    {
-      name: "exact title + location",
-      weight: 4,
-      titlesFrom: "currentTitles",
-      useLocation: true,
-      limit: 25,
-    },
-    {
-      name: "adjacent title + skills + location",
-      weight: 3,
-      titlesFrom: "adjacentTitles",
-      keywordsFrom: ["skills"],
-      keywordsJoin: "AND",
-      useLocation: true,
-      limit: 20,
-    },
-    {
-      name: "skills / keywords + location",
+      name: "title + skills + location",
       weight: 2,
+      titlesFrom: "currentTitles",
+      keywordsFrom: ["skills", "keywords"],
+      keywordsJoin: "AND",
+      useLocation: true,
+      limit: 25,
+    },
+    {
+      name: "broad keywords",
+      weight: 1,
       keywordsFrom: ["skills", "keywords"],
       keywordsJoin: "OR",
       useLocation: true,
-      limit: 15,
-    },
-    {
-      name: "exact title + skills, any location",
-      weight: 1,
-      titlesFrom: "currentTitles",
-      keywordsFrom: ["skills"],
-      keywordsJoin: "AND",
-      limit: 15,
+      limit: 25,
     },
   ],
 };
