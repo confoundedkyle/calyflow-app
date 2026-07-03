@@ -49,6 +49,8 @@ const TOOL_LABELS: Record<string, string> = {
   signalhire_search_people: "Searched SignalHire",
   contactout_source_people: "Ran ContactOut search ladder",
   contactout_people_search: "Searched ContactOut",
+  rocketreach_source_people: "Ran RocketReach search ladder",
+  rocketreach_search_people: "Searched RocketReach",
   coresignal_source_employees: "Ran Coresignal search ladder",
   web_search: "Searched the web",
   web_scrape: "Read a web page",

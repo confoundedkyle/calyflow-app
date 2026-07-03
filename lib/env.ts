@@ -228,6 +228,12 @@ export const env = {
   get contactoutLadder() {
     return process.env.CONTACTOUT_LADDER ?? "";
   },
+  /** Optional override for the RocketReach search-ladder spec. Basic committed
+   *  default (search is free); swap in a tuned spec via bucket/env.
+   *  See lib/sourcing/rocketreach-ladder.ts. */
+  get rocketreachLadder() {
+    return process.env.ROCKETREACH_LADDER ?? "";
+  },
   /** Optional self-host fallback for the Outreach (email drafting) harness.
    *  See lib/outreach/harness.ts. */
   get outreachHarness() {
