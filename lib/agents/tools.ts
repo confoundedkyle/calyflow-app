@@ -35,6 +35,7 @@ import { coresignalAdapter } from "../integrations/coresignal";
 import { loadCoresignalLadder } from "../sourcing/coresignal-ladder";
 import { loadSignalHireLadder } from "../sourcing/signalhire-ladder";
 import { loadContactOutLadder } from "../sourcing/contactout-ladder";
+import { loadRocketReachLadder } from "../sourcing/rocketreach-ladder";
 import { crelateAdapter } from "../integrations/crelate";
 import { discordAdapter } from "../integrations/discord";
 import { dropcontactAdapter } from "../integrations/dropcontact";
@@ -3164,6 +3165,54 @@ function buildAll(ctx: ToolContext): ToolSet {
       },
     }),
 
+    rocketreach_source_people: tool({
+      description:
+        "Run a deterministic, cost/speed-optimised RocketReach search ladder for ONE search intent and return a deduped, ranked shortlist of profiles. Call this ONCE per intent — it runs the tightest filters first (titles + skills + location), widens automatically only as needed, runs tiers concurrently, dedupes across tiers, and STOPS once it has enough. RocketReach search is FREE (no contacts revealed). Pass the title tiers and skills from your Sourcing Plan. Always prefer this over looping rocketreach_search_people by hand. Reveal contacts later with rocketreach_lookup_person.",
+      inputSchema: z.object({
+        currentTitles: z
+          .array(z.string())
+          .min(1)
+          .describe("Exact current job titles for this role."),
+        adjacentTitles: z
+          .array(z.string())
+          .optional()
+          .describe("Adjacent / synonymous titles, incl. recent past roles."),
+        skills: z
+          .array(z.string())
+          .optional()
+          .describe("Must-have skills / tools."),
+        keywords: z
+          .string()
+          .optional()
+          .describe("Extra keyword (folded into the skills filter)."),
+        companies: z
+          .array(z.string())
+          .optional()
+          .describe("Target employers to filter to (optional)."),
+        location: z
+          .string()
+          .optional()
+          .describe("Target location, e.g. 'London' or 'San Francisco, CA'."),
+        targetCount: z
+          .number()
+          .int()
+          .positive()
+          .optional()
+          .describe("Unique candidates to gather before stopping (default 25)."),
+        maxSearches: z
+          .number()
+          .int()
+          .positive()
+          .optional()
+          .describe("Cap on search calls this ladder makes (default 6, max 24)."),
+      }),
+      execute: async (args) => {
+        if (!ctx.rocketreachToken) return { error: notConnected("RocketReach") };
+        const spec = await loadRocketReachLadder();
+        return rocketreachAdapter.sourcePeople(ctx.rocketreachToken, args, spec);
+      },
+    }),
+
     rocketreach_lookup_person: tool({
       description:
         "Reveal a person's emails and phones via RocketReach from a profileId (from rocketreach_search_people), an email, a LinkedIn URL, or a name plus currentEmployer. Costs a credit per match — look up selectively, never in bulk. May return an in-progress status; finish with rocketreach_check_lookup.",
@@ -4289,6 +4338,7 @@ export const ALL_TOOL_NAMES = [
   "recruitis_list_jobs",
   "recruitis_list_candidates",
   "rocketreach_search_people",
+  "rocketreach_source_people",
   "rocketreach_lookup_person",
   "rocketreach_check_lookup",
   "salesflare_search_contacts",

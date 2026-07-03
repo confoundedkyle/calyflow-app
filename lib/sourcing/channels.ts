@@ -20,7 +20,7 @@ const FREE_SEARCH: Record<string, string> = {
   contactout:
     "contactout_source_people — deterministic multi-tier search ladder (free, contact-free). Prefer it over looping contactout_people_search",
   rocketreach:
-    "rocketreach_search_people — filter by title, employer, location (search is free)",
+    "rocketreach_source_people — deterministic multi-tier search ladder (free, contact-free). Prefer it over looping rocketreach_search_people",
 };
 
 // People-search databases whose SEARCH itself spends credits — use AFTER the free

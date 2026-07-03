@@ -12,6 +12,15 @@ const API = "https://api.rocketreach.co/api/v2";
 
 const DEFAULT_PAGE_SIZE = 10;
 const HARD_PAGE_SIZE = 25;
+
+// Ladder ceilings. RocketReach search (contacts hidden) is FREE, so the budget
+// is a call-count guard, not a spend cap.
+const HARD_MAX_SEARCHES = 24;
+const MAX_TIER_PAGES = 4;
+const LADDER_CHAR_CAP = 14_000;
+
+const clampInt = (n: number, lo: number, hi: number) =>
+  Math.max(lo, Math.min(hi, Math.floor(n)));
 const CHAR_CAP = 12_000;
 
 export interface RocketReachProfile {
@@ -30,6 +39,56 @@ export interface RocketReachProfile {
   phones?: { number?: string | null; type?: string | null }[] | null;
 }
 
+/** One flat RocketReach search (the query fields /person/search accepts). */
+export interface RocketReachSearchArgs {
+  titles?: string[];
+  employers?: string[];
+  locations?: string[];
+  skills?: string[];
+  page?: number;
+  limit?: number;
+}
+
+/** The search intent the Sourcing agent passes to the ladder. */
+export interface RocketReachSourceArgs {
+  currentTitles: string[];
+  adjacentTitles?: string[];
+  skills?: string[];
+  keywords?: string;
+  companies?: string[];
+  location?: string;
+  targetCount?: number;
+  maxSearches?: number;
+}
+
+/** One ladder tier — a single search whose filters these flags choose. RocketReach
+ *  takes list filters directly, so no per-title fan-out (like ContactOut). */
+export interface RocketReachLadderTier {
+  name: string;
+  weight: number;
+  /** Intent list field → current_title[]. */
+  titlesFrom?: string;
+  /** Include the intent skills[] (and, with keywordsAsSkills, the keywords). */
+  useSkills?: boolean;
+  keywordsAsSkills?: boolean;
+  /** Include the intent companies → current_employer[]. */
+  useCompanies?: boolean;
+  useLocation?: boolean;
+  /** Result pages to pull (each ≤25). Default 1. */
+  pages?: number;
+  limit?: number;
+}
+
+export interface RocketReachLadderSpec {
+  defaults: {
+    targetCount: number;
+    maxSearches: number;
+    limit?: number;
+    concurrency?: number;
+  };
+  tiers: RocketReachLadderTier[];
+}
+
 export interface RocketReachAdapter extends ConnectorAdapter {
   searchPeople(
     apiKey: string,
@@ -42,6 +101,12 @@ export interface RocketReachAdapter extends ConnectorAdapter {
       limit?: number;
     },
   ): Promise<{ text: string; count: number; truncated: boolean }>;
+  sourcePeople(
+    apiKey: string,
+    args: RocketReachSourceArgs,
+    spec: RocketReachLadderSpec,
+    record?: (searches: number, detail?: unknown) => Promise<void> | void,
+  ): Promise<{ text: string; count: number; truncated: boolean; searches: number }>;
   lookupPerson(
     apiKey: string,
     args: {
@@ -132,6 +197,123 @@ function renderPendingOrProfile(p: RocketReachProfile): {
   return { ...rendered, pending: false };
 }
 
+/** Low-level /person/search call returning raw profiles + total. Search-only:
+ *  no contacts are revealed (that's rocketreach_lookup_person). */
+async function rawSearch(
+  apiKey: string,
+  args: RocketReachSearchArgs,
+): Promise<{ profiles: RocketReachProfile[]; total: number }> {
+  const query: Record<string, string[]> = {};
+  if (args.titles?.length) query.current_title = args.titles;
+  if (args.employers?.length) query.current_employer = args.employers;
+  if (args.locations?.length) query.location = args.locations;
+  if (args.skills?.length) query.skills = args.skills;
+  if (Object.keys(query).length === 0) return { profiles: [], total: 0 };
+  const pageSize = Math.min(args.limit ?? DEFAULT_PAGE_SIZE, HARD_PAGE_SIZE);
+  const start = ((args.page ?? 1) - 1) * pageSize + 1;
+  const res = await fetch(`${API}/person/search`, {
+    method: "POST",
+    headers: { ...headers(apiKey), "Content-Type": "application/json" },
+    body: JSON.stringify({ query, start, page_size: pageSize }),
+  });
+  const json = (await res.json().catch(() => null)) as {
+    profiles?: RocketReachProfile[];
+    pagination?: { total?: number };
+  } | null;
+  if (!res.ok) fail(res, json);
+  const profiles = json?.profiles ?? [];
+  return { profiles, total: json?.pagination?.total ?? profiles.length };
+}
+
+/** Trimmed, non-empty values for an intent field. */
+function rrValuesOf(args: RocketReachSourceArgs, key?: string): string[] {
+  if (!key) return [];
+  const raw = (args as unknown as Record<string, unknown>)[key];
+  if (typeof raw === "string") {
+    const t = raw.trim();
+    return t ? [t] : [];
+  }
+  if (Array.isArray(raw)) {
+    return raw.map((v) => (typeof v === "string" ? v.trim() : "")).filter(Boolean);
+  }
+  return [];
+}
+
+/** Expand a tier into its flat searches (one per page). Returns [] when the tier
+ *  has no usable filters. Exported for unit tests. */
+export function buildRocketReachTierSearches(
+  tier: RocketReachLadderTier,
+  args: RocketReachSourceArgs,
+): RocketReachSearchArgs[] {
+  const titles = tier.titlesFrom ? rrValuesOf(args, tier.titlesFrom) : [];
+  if (tier.titlesFrom && titles.length === 0) return [];
+  const skills = [
+    ...(tier.useSkills ? rrValuesOf(args, "skills") : []),
+    ...(tier.keywordsAsSkills ? rrValuesOf(args, "keywords") : []),
+  ];
+  const employers = tier.useCompanies ? rrValuesOf(args, "companies") : [];
+  const locations =
+    tier.useLocation && args.location?.trim() ? [args.location.trim()] : [];
+
+  const base: RocketReachSearchArgs = {
+    titles: titles.length ? titles : undefined,
+    employers: employers.length ? employers : undefined,
+    locations: locations.length ? locations : undefined,
+    skills: skills.length ? skills : undefined,
+    limit: tier.limit,
+  };
+  if (!base.titles && !base.employers && !base.locations && !base.skills) {
+    return [];
+  }
+  const pages = clampInt(tier.pages ?? 1, 1, MAX_TIER_PAGES);
+  return Array.from({ length: pages }, (_, i) => ({ ...base, page: i + 1 }));
+}
+
+/** Stable key so identical searches across tiers run once. */
+function rrSearchKey(s: RocketReachSearchArgs): string {
+  return JSON.stringify([
+    s.titles ?? [],
+    s.employers ?? [],
+    s.locations ?? [],
+    s.skills ?? [],
+    s.page ?? 1,
+  ]).toLowerCase();
+}
+
+/** Bounded-concurrency map, preserving input order. */
+async function mapPool<T, R>(
+  items: T[],
+  concurrency: number,
+  fn: (item: T, index: number) => Promise<R>,
+): Promise<R[]> {
+  const results = new Array<R>(items.length);
+  let next = 0;
+  const workers = Array.from(
+    { length: Math.max(1, Math.min(concurrency, items.length)) },
+    async () => {
+      for (;;) {
+        const i = next++;
+        if (i >= items.length) return;
+        results[i] = await fn(items[i], i);
+      }
+    },
+  );
+  await Promise.all(workers);
+  return results;
+}
+
+/** One markdown table row for a profile (shared by search + ladder). */
+function profileRow(p: RocketReachProfile): string {
+  return `| ${cell(p.name)} | ${cell(p.current_title)} | ${cell(
+    p.current_employer,
+  )} | ${cell(locationOf(p))} | ${cell(p.linkedin_url)} | ${p.id ?? ""} |`;
+}
+
+const TABLE_HEADER = [
+  "| Name | Title | Company | Location | LinkedIn | Profile ID |",
+  "| --- | --- | --- | --- | --- | --- |",
+];
+
 export const rocketreachAdapter: RocketReachAdapter = {
   provider: "rocketreach",
   authType: "apikey",
@@ -206,6 +388,103 @@ export const rocketreachAdapter: RocketReachAdapter = {
         : "_No profiles found._",
       count: profiles.length,
       truncated: truncated || total > profiles.length,
+    };
+  },
+
+  async sourcePeople(apiKey, args, spec, record) {
+    // Debug: the intent the agent passed, so we can see how it maps to searches.
+    console.log(`[rocketreach] ladder intent: ${JSON.stringify(args)}`);
+    const target = clampInt(args.targetCount ?? spec.defaults.targetCount, 1, 100);
+    const maxSearches = clampInt(
+      args.maxSearches ?? spec.defaults.maxSearches,
+      1,
+      HARD_MAX_SEARCHES,
+    );
+    const concurrency = clampInt(spec.defaults.concurrency ?? 4, 1, 8);
+    const defaultLimit = spec.defaults.limit;
+
+    // linkedin url (or profile id) → first tier that surfaced it + profile.
+    const seen = new Map<
+      string,
+      { tier: string; weight: number; rank: number; profile: RocketReachProfile }
+    >();
+    const ranQueries = new Set<string>();
+    let searchesRun = 0;
+    const tierLog: string[] = [];
+    let firstError: string | null = null;
+
+    for (const tier of spec.tiers) {
+      if (seen.size >= target || searchesRun >= maxSearches) break;
+      const searches = buildRocketReachTierSearches(tier, args)
+        .map((s) => ({ ...s, limit: s.limit ?? defaultLimit ?? HARD_PAGE_SIZE }))
+        .filter((s) => {
+          const k = rrSearchKey(s);
+          if (ranQueries.has(k)) return false;
+          ranQueries.add(k);
+          return true;
+        });
+      if (searches.length === 0) continue;
+
+      const batch = searches.slice(0, maxSearches - searchesRun);
+      const batchResults = await mapPool(batch, concurrency, async (s) => {
+        try {
+          return (await rawSearch(apiKey, s)).profiles;
+        } catch (error) {
+          if (firstError === null) {
+            firstError = error instanceof Error ? error.message : "search failed";
+          }
+          return [] as RocketReachProfile[];
+        }
+      });
+      searchesRun += batch.length;
+
+      let addedInTier = 0;
+      for (const profiles of batchResults) {
+        profiles.forEach((p, i) => {
+          const key = (p.linkedin_url ?? (p.id != null ? String(p.id) : ""))?.trim();
+          if (!key || seen.has(key)) return;
+          seen.set(key, { tier: tier.name, weight: tier.weight, rank: i, profile: p });
+          addedInTier++;
+        });
+      }
+      tierLog.push(`${tier.name} ${batch.length}q↦+${addedInTier}`);
+    }
+
+    if (seen.size === 0 && firstError) {
+      return {
+        text: `_RocketReach ladder couldn't run (${firstError})._`,
+        count: 0,
+        truncated: false,
+        searches: searchesRun,
+      };
+    }
+
+    const ranked = [...seen.values()]
+      .sort((a, b) => b.weight - a.weight || a.rank - b.rank)
+      .slice(0, target);
+
+    if (record && searchesRun > 0) {
+      await record(searchesRun, { tiers: tierLog, unique: seen.size });
+    }
+
+    const lines = [...TABLE_HEADER];
+    let truncated = false;
+    for (const { profile } of ranked) {
+      lines.push(profileRow(profile));
+      if (lines.join("\n").length > LADDER_CHAR_CAP) {
+        truncated = true;
+        break;
+      }
+    }
+    const header =
+      `_RocketReach ladder — ${tierLog.join(" · ") || "no tiers run"}. ` +
+      `${seen.size} unique across ${searchesRun} free searches (no credits). ` +
+      `Search shows no contacts — use rocketreach_lookup_person on the ones you pick._`;
+    return {
+      text: ranked.length ? `${header}\n\n${lines.join("\n")}` : `${header}\n\n_No profiles found._`,
+      count: ranked.length,
+      truncated: truncated || seen.size > ranked.length,
+      searches: searchesRun,
     };
   },
 
