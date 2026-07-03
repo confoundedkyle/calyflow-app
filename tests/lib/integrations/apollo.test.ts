@@ -19,13 +19,14 @@ function lastRequest(): { url: string; init: RequestInit; body: Record<string, u
 }
 
 describe("validateApiKey", () => {
-  it("posts to the auth health endpoint with the api key header", async () => {
+  it("GETs the auth health endpoint with the api key (header + query)", async () => {
     fetchMock.mockResolvedValueOnce(jsonResponse({ is_logged_in: true }));
     const result = await apolloAdapter.validateApiKey!("key-1");
     expect(result).toEqual({ ok: true, accountLabel: "Apollo account" });
-    const { url, init } = lastRequest();
-    expect(url).toBe("https://api.apollo.io/v1/auth/health");
-    expect(init.method).toBe("POST");
+    const [url, init] = fetchMock.mock.calls.at(-1)!;
+    expect(url).toContain("/v1/auth/health");
+    expect(url).toContain("api_key=key-1");
+    expect(init.method ?? "GET").toBe("GET"); // not a POST
     expect((init.headers as Record<string, string>)["X-Api-Key"]).toBe("key-1");
   });
 
@@ -36,13 +37,19 @@ describe("validateApiKey", () => {
     expect(result.message).toBe("Apollo rejected the API key.");
   });
 
-  it("surfaces HTTP errors with status and detail", async () => {
+  it("rejects an unauthorized key (401/403)", async () => {
     fetchMock.mockResolvedValueOnce(
       jsonResponse({ error: "invalid api key" }, 401),
     );
     const result = await apolloAdapter.validateApiKey!("bad-key");
+    expect(result).toEqual({ ok: false, message: "Apollo rejected the API key." });
+  });
+
+  it("surfaces other HTTP errors with status + detail", async () => {
+    fetchMock.mockResolvedValueOnce(jsonResponse({ error: "server oops" }, 500));
+    const result = await apolloAdapter.validateApiKey!("key-1");
     expect(result.ok).toBe(false);
-    expect(result.message).toBe("Apollo error (401): invalid api key");
+    expect(result.message).toBe("Apollo error (500): server oops");
   });
 });
 

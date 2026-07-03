@@ -172,12 +172,26 @@ export const apolloAdapter: ApolloAdapter = {
   authType: "apikey",
 
   async validateApiKey(apiKey) {
+    // The auth-health check is a GET (Apollo's operational endpoints are POST,
+    // but this one isn't — POSTing to it returns 404). Send the key both as the
+    // X-Api-Key header and the api_key query param to cover both key styles.
     try {
-      const json = await post<{ is_logged_in?: boolean }>(
-        apiKey,
-        "/v1/auth/health",
-        {},
+      const res = await fetch(
+        `${API}/v1/auth/health?api_key=${encodeURIComponent(apiKey)}`,
+        { headers: { "X-Api-Key": apiKey, Accept: "application/json" } },
       );
+      const json = (await res.json().catch(() => null)) as {
+        is_logged_in?: boolean;
+        error?: string;
+        message?: string;
+      } | null;
+      if (!res.ok) {
+        if (res.status === 401 || res.status === 403) {
+          return { ok: false, message: "Apollo rejected the API key." };
+        }
+        const detail = json?.error ?? json?.message ?? res.statusText;
+        return { ok: false, message: `Apollo error (${res.status}): ${detail}` };
+      }
       if (json?.is_logged_in === false) {
         return { ok: false, message: "Apollo rejected the API key." };
       }
