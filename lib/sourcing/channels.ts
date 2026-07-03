@@ -18,7 +18,7 @@ const FREE_SEARCH: Record<string, string> = {
   apollo:
     "apollo_search_people — filter by title, seniority, company, location (search is free)",
   contactout:
-    "contactout_people_search — filter by title, company, skills, location (search is free)",
+    "contactout_source_people — deterministic multi-tier search ladder (free, contact-free). Prefer it over looping contactout_people_search",
   rocketreach:
     "rocketreach_search_people — filter by title, employer, location (search is free)",
 };

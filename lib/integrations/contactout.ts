@@ -48,7 +48,78 @@ export interface ContactOutAdapter extends ConnectorAdapter {
       limit?: number;
     },
   ): Promise<{ text: string; count: number; truncated: boolean }>;
+  sourcePeople(
+    apiKey: string,
+    args: ContactOutSourceArgs,
+    spec: ContactOutLadderSpec,
+    record?: (searches: number, detail?: unknown) => Promise<void> | void,
+  ): Promise<{ text: string; count: number; truncated: boolean; searches: number }>;
 }
+
+// --- Ladder types ----------------------------------------------------------
+// ContactOut People Search takes LIST filters directly (job_title[], company[],
+// location[], seniority[], skills[]) and reveal_info:false makes search FREE —
+// so a tier is ONE search that relaxes which filters apply (no per-title fan-out
+// like SignalHire). The tier→filter mapping lives in the spec, not here.
+
+/** One flat ContactOut search (the fields peopleSearch accepts). */
+export interface ContactOutSearchArgs {
+  jobTitles?: string[];
+  companies?: string[];
+  locations?: string[];
+  seniorities?: string[];
+  skills?: string[];
+  page?: number;
+  limit?: number;
+}
+
+/** The search intent the Sourcing agent passes to the ladder. */
+export interface ContactOutSourceArgs {
+  currentTitles: string[];
+  adjacentTitles?: string[];
+  skills?: string[];
+  keywords?: string;
+  companies?: string[];
+  location?: string;
+  seniority?: string;
+  targetCount?: number;
+  maxSearches?: number;
+}
+
+/** One ladder tier — a single search whose filters are chosen by these flags. */
+export interface ContactOutLadderTier {
+  name: string;
+  weight: number;
+  /** Intent list field → job_title[]. */
+  titlesFrom?: string;
+  /** Include the intent skills[] (and, with keywordsAsSkills, the keywords). */
+  useSkills?: boolean;
+  keywordsAsSkills?: boolean;
+  useCompanies?: boolean;
+  useLocation?: boolean;
+  useSeniority?: boolean;
+  /** How many result pages to pull (each ≤25). Default 1. */
+  pages?: number;
+  limit?: number;
+}
+
+export interface ContactOutLadderSpec {
+  defaults: {
+    targetCount: number;
+    maxSearches: number;
+    limit?: number;
+    concurrency?: number;
+  };
+  tiers: ContactOutLadderTier[];
+}
+
+// Ladder ceilings. ContactOut search (reveal_info:false) is FREE, so the budget
+// is a call-count guard, not a spend cap.
+const HARD_MAX_SEARCHES = 24;
+const MAX_TIER_PAGES = 4;
+
+const clampInt = (n: number, lo: number, hi: number) =>
+  Math.max(lo, Math.min(hi, Math.floor(n)));
 
 function headers(apiKey: string): Record<string, string> {
   return { token: apiKey, authorization: "basic", Accept: "application/json" };
@@ -207,6 +278,128 @@ function renderSearch(entries: [string, ContactOutProfile][]): {
   return { text: lines.join("\n"), truncated };
 }
 
+/** Low-level people/search call returning raw [url, profile] entries + total.
+ *  Shared by peopleSearch (renders a table) and the ladder (dedupes across
+ *  tiers). Always search-only: reveal_info stays false. */
+async function rawPeopleSearch(
+  apiKey: string,
+  args: ContactOutSearchArgs,
+): Promise<{ entries: [string, ContactOutProfile][]; total: number }> {
+  const body: Record<string, unknown> = {
+    page: args.page ?? 1,
+    reveal_info: false,
+  };
+  if (args.jobTitles?.length) body.job_title = args.jobTitles;
+  if (args.companies?.length) body.company = args.companies;
+  if (args.locations?.length) body.location = args.locations;
+  if (args.seniorities?.length) body.seniority = args.seniorities;
+  if (args.skills?.length) body.skills = args.skills;
+  if (
+    !body.job_title &&
+    !body.company &&
+    !body.location &&
+    !body.seniority &&
+    !body.skills
+  ) {
+    return { entries: [], total: 0 };
+  }
+  const json = await post<{
+    metadata?: { total_results?: number };
+    profiles?: Record<string, ContactOutProfile>;
+  }>(apiKey, "/v1/people/search", body);
+  const limit = Math.min(args.limit ?? DEFAULT_LIMIT, HARD_LIMIT);
+  const entries = Object.entries(json.profiles ?? {}).slice(0, limit);
+  return { entries, total: json.metadata?.total_results ?? entries.length };
+}
+
+/** Trimmed, non-empty values for an intent field. */
+function coValuesOf(args: ContactOutSourceArgs, key?: string): string[] {
+  if (!key) return [];
+  const raw = (args as unknown as Record<string, unknown>)[key];
+  if (typeof raw === "string") {
+    const t = raw.trim();
+    return t ? [t] : [];
+  }
+  if (Array.isArray(raw)) {
+    return raw.map((v) => (typeof v === "string" ? v.trim() : "")).filter(Boolean);
+  }
+  return [];
+}
+
+/** Expand a tier into the flat searches it should run (one per page). Returns []
+ *  when the tier has no usable filters. Exported for unit tests. */
+export function buildContactOutTierSearches(
+  tier: ContactOutLadderTier,
+  args: ContactOutSourceArgs,
+): ContactOutSearchArgs[] {
+  const jobTitles = tier.titlesFrom ? coValuesOf(args, tier.titlesFrom) : [];
+  if (tier.titlesFrom && jobTitles.length === 0) return []; // declared but empty
+  const skills = [
+    ...(tier.useSkills ? coValuesOf(args, "skills") : []),
+    ...(tier.keywordsAsSkills ? coValuesOf(args, "keywords") : []),
+  ];
+  const companies = tier.useCompanies ? coValuesOf(args, "companies") : [];
+  const locations =
+    tier.useLocation && args.location?.trim() ? [args.location.trim()] : [];
+  const seniorities =
+    tier.useSeniority && args.seniority?.trim() ? [args.seniority.trim()] : [];
+
+  const base: ContactOutSearchArgs = {
+    jobTitles: jobTitles.length ? jobTitles : undefined,
+    companies: companies.length ? companies : undefined,
+    locations: locations.length ? locations : undefined,
+    seniorities: seniorities.length ? seniorities : undefined,
+    skills: skills.length ? skills : undefined,
+    limit: tier.limit,
+  };
+  // No usable filter → skip (never search everything).
+  if (
+    !base.jobTitles &&
+    !base.companies &&
+    !base.locations &&
+    !base.seniorities &&
+    !base.skills
+  ) {
+    return [];
+  }
+  const pages = clampInt(tier.pages ?? 1, 1, MAX_TIER_PAGES);
+  return Array.from({ length: pages }, (_, i) => ({ ...base, page: i + 1 }));
+}
+
+/** Stable key so identical searches across tiers run once. */
+function coSearchKey(s: ContactOutSearchArgs): string {
+  return JSON.stringify([
+    s.jobTitles ?? [],
+    s.companies ?? [],
+    s.locations ?? [],
+    s.seniorities ?? [],
+    s.skills ?? [],
+    s.page ?? 1,
+  ]).toLowerCase();
+}
+
+/** Bounded-concurrency map, preserving input order. */
+async function mapPool<T, R>(
+  items: T[],
+  concurrency: number,
+  fn: (item: T, index: number) => Promise<R>,
+): Promise<R[]> {
+  const results = new Array<R>(items.length);
+  let next = 0;
+  const workers = Array.from(
+    { length: Math.max(1, Math.min(concurrency, items.length)) },
+    async () => {
+      for (;;) {
+        const i = next++;
+        if (i >= items.length) return;
+        results[i] = await fn(items[i], i);
+      }
+    },
+  );
+  await Promise.all(workers);
+  return results;
+}
+
 export const contactoutAdapter: ContactOutAdapter = {
   provider: "contactout",
   authType: "apikey",
@@ -339,6 +532,98 @@ export const contactoutAdapter: ContactOutAdapter = {
         : rendered.text,
       count: entries.length,
       truncated: rendered.truncated || total > entries.length,
+    };
+  },
+
+  async sourcePeople(apiKey, args, spec, record) {
+    // Debug: the intent the agent passed, so we can see how it maps to searches.
+    console.log(`[contactout] ladder intent: ${JSON.stringify(args)}`);
+    const target = clampInt(args.targetCount ?? spec.defaults.targetCount, 1, 100);
+    const maxSearches = clampInt(
+      args.maxSearches ?? spec.defaults.maxSearches,
+      1,
+      HARD_MAX_SEARCHES,
+    );
+    const concurrency = clampInt(spec.defaults.concurrency ?? 4, 1, 8);
+    const defaultLimit = spec.defaults.limit;
+
+    // url → first tier that surfaced the profile (for weight-ranking) + profile.
+    const seen = new Map<
+      string,
+      { tier: string; weight: number; rank: number; profile: ContactOutProfile }
+    >();
+    const ranQueries = new Set<string>();
+    let searchesRun = 0;
+    const tierLog: string[] = [];
+    let firstError: string | null = null;
+
+    for (const tier of spec.tiers) {
+      if (seen.size >= target || searchesRun >= maxSearches) break;
+      const searches = buildContactOutTierSearches(tier, args)
+        .map((s) => ({ ...s, limit: s.limit ?? defaultLimit ?? HARD_LIMIT }))
+        .filter((s) => {
+          const k = coSearchKey(s);
+          if (ranQueries.has(k)) return false;
+          ranQueries.add(k);
+          return true;
+        });
+      if (searches.length === 0) continue;
+
+      const batch = searches.slice(0, maxSearches - searchesRun);
+      const batchResults = await mapPool(batch, concurrency, async (s) => {
+        try {
+          return (await rawPeopleSearch(apiKey, s)).entries;
+        } catch (error) {
+          if (firstError === null) {
+            firstError = error instanceof Error ? error.message : "search failed";
+          }
+          return [] as [string, ContactOutProfile][];
+        }
+      });
+      searchesRun += batch.length;
+
+      let addedInTier = 0;
+      for (const entries of batchResults) {
+        entries.forEach(([key, profile], i) => {
+          const url = (profile.url ?? key)?.trim();
+          if (!url || seen.has(url)) return;
+          seen.set(url, { tier: tier.name, weight: tier.weight, rank: i, profile });
+          addedInTier++;
+        });
+      }
+      tierLog.push(`${tier.name} ${batch.length}q↦+${addedInTier}`);
+    }
+
+    if (seen.size === 0 && firstError) {
+      return {
+        text: `_ContactOut ladder couldn't run (${firstError})._`,
+        count: 0,
+        truncated: false,
+        searches: searchesRun,
+      };
+    }
+
+    const ranked = [...seen.entries()]
+      .sort((a, b) => b[1].weight - a[1].weight || a[1].rank - b[1].rank)
+      .slice(0, target);
+
+    if (record && searchesRun > 0) {
+      // Search (reveal_info:false) is free — record 0 spend, log calls + yield.
+      await record(searchesRun, { tiers: tierLog, unique: seen.size });
+    }
+
+    const rendered = renderSearch(
+      ranked.map(([url, s]) => [url, s.profile] as [string, ContactOutProfile]),
+    );
+    const header =
+      `_ContactOut ladder — ${tierLog.join(" · ") || "no tiers run"}. ` +
+      `${seen.size} unique across ${searchesRun} free searches (no credits). ` +
+      `Search is contact-free — reveal emails later with the enrichment step._`;
+    return {
+      text: ranked.length ? `${header}\n\n${rendered.text}` : `${header}\n\n_No profiles found._`,
+      count: ranked.length,
+      truncated: rendered.truncated || seen.size > ranked.length,
+      searches: searchesRun,
     };
   },
 };

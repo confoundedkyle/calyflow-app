@@ -222,6 +222,12 @@ export const env = {
   get signalhireLadder() {
     return process.env.SIGNALHIRE_LADDER ?? "";
   },
+  /** Optional override for the ContactOut search-ladder spec. Ships a basic
+   *  committed default (search is free); swap in a tuned spec via bucket/env.
+   *  See lib/sourcing/contactout-ladder.ts. */
+  get contactoutLadder() {
+    return process.env.CONTACTOUT_LADDER ?? "";
+  },
   /** Optional self-host fallback for the Outreach (email drafting) harness.
    *  See lib/outreach/harness.ts. */
   get outreachHarness() {

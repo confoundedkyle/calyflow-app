@@ -47,6 +47,8 @@ const TOOL_LABELS: Record<string, string> = {
   calyflow_save_candidate: "Saved a candidate",
   signalhire_source_people: "Ran SignalHire search ladder",
   signalhire_search_people: "Searched SignalHire",
+  contactout_source_people: "Ran ContactOut search ladder",
+  contactout_people_search: "Searched ContactOut",
   coresignal_source_employees: "Ran Coresignal search ladder",
   web_search: "Searched the web",
   web_scrape: "Read a web page",

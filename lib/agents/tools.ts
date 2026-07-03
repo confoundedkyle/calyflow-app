@@ -34,6 +34,7 @@ import { copperAdapter } from "../integrations/copper";
 import { coresignalAdapter } from "../integrations/coresignal";
 import { loadCoresignalLadder } from "../sourcing/coresignal-ladder";
 import { loadSignalHireLadder } from "../sourcing/signalhire-ladder";
+import { loadContactOutLadder } from "../sourcing/contactout-ladder";
 import { crelateAdapter } from "../integrations/crelate";
 import { discordAdapter } from "../integrations/discord";
 import { dropcontactAdapter } from "../integrations/dropcontact";
@@ -1850,6 +1851,58 @@ function buildAll(ctx: ToolContext): ToolSet {
         // and phone credits per profile.
         const safe = ctx.searchOnly ? { ...args, revealInfo: false } : args;
         return contactoutAdapter.peopleSearch(ctx.contactoutToken, safe);
+      },
+    }),
+
+    contactout_source_people: tool({
+      description:
+        "Run a deterministic, cost/speed-optimised ContactOut search ladder for ONE search intent and return a deduped, ranked shortlist of LinkedIn profiles. Call this ONCE per intent — it runs the tightest filters first (titles + skills + location + seniority), widens automatically only as needed, runs tiers concurrently, dedupes across tiers, and STOPS once it has enough. ContactOut search is FREE (contact-free — reveal_info stays off). Pass the title tiers and skills from your Sourcing Plan. Always prefer this over looping contactout_people_search by hand. Reveal contacts later with contactout_linkedin_enrich.",
+      inputSchema: z.object({
+        currentTitles: z
+          .array(z.string())
+          .min(1)
+          .describe("Exact current job titles for this role."),
+        adjacentTitles: z
+          .array(z.string())
+          .optional()
+          .describe("Adjacent / synonymous titles, incl. recent past roles."),
+        skills: z
+          .array(z.string())
+          .optional()
+          .describe("Must-have skills / tools."),
+        keywords: z
+          .string()
+          .optional()
+          .describe("Extra keyword (folded into the skills filter)."),
+        companies: z
+          .array(z.string())
+          .optional()
+          .describe("Target companies to filter to (optional)."),
+        location: z
+          .string()
+          .optional()
+          .describe("Target location, e.g. 'London' or 'San Francisco, CA'."),
+        seniority: z
+          .string()
+          .optional()
+          .describe("Seniority level, e.g. 'senior', 'director', 'c-level'."),
+        targetCount: z
+          .number()
+          .int()
+          .positive()
+          .optional()
+          .describe("Unique candidates to gather before stopping (default 25)."),
+        maxSearches: z
+          .number()
+          .int()
+          .positive()
+          .optional()
+          .describe("Cap on search calls this ladder makes (default 6, max 24)."),
+      }),
+      execute: async (args) => {
+        if (!ctx.contactoutToken) return { error: notConnected("ContactOut") };
+        const spec = await loadContactOutLadder();
+        return contactoutAdapter.sourcePeople(ctx.contactoutToken, args, spec);
       },
     }),
 
@@ -4128,6 +4181,7 @@ export const ALL_TOOL_NAMES = [
   "dropcontact_get_result",
   "emailable_verify_email",
   "contactout_people_search",
+  "contactout_source_people",
   "contactout_linkedin_enrich",
   "contactout_person_enrich",
   "contactout_email_verify",
