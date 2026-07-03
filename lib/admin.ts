@@ -17,7 +17,7 @@ export interface AdminUser {
 
 export interface AdminRunRow {
   id: string;
-  kind: "agent" | "workflow";
+  kind: string; // agent | workflow | sourcing | sourcing-plan | qualification | shortlist | outreach | onboarding
   name: string;
   provider: string | null;
   model: string | null;
@@ -28,10 +28,25 @@ export interface AdminRunRow {
   runnerName: string | null;
 }
 
-/** Per-user spend (USD) and run count, summed across agent + workflow runs. */
+// Every table that records an AI run + its cost. Besides the classic agent /
+// workflow runs, each sourcing-pipeline step (and KB onboarding) records its own
+// runs in a dedicated table — users who only use the new flow would otherwise
+// show 0 runs / $0 spent here.
+const RUN_TABLES = [
+  "agent_runs",
+  "workflow_runs",
+  "sourcing_plan_runs",
+  "qualification_runs",
+  "shortlist_runs",
+  "outreach_runs",
+  "sourcing_strategy_runs",
+  "kb_onboarding_runs",
+] as const;
+
+/** Per-user spend (USD) and run count, summed across every run table. */
 async function usageByUser(): Promise<Map<string, { spent: number; runs: number }>> {
   const map = new Map<string, { spent: number; runs: number }>();
-  for (const table of ["agent_runs", "workflow_runs"] as const) {
+  for (const table of RUN_TABLES) {
     const { data } = await db().from(table).select("created_by, cost_usd");
     for (const row of (data ?? []) as {
       created_by: string | null;
@@ -77,20 +92,39 @@ export async function adminListRuns(
 ): Promise<AdminRunRow[]> {
   const select =
     "id, created_by, provider, model, input_tokens, output_tokens, cost_usd, created_at";
-  const [{ data: agentRuns }, { data: workflowRuns }] = await Promise.all([
-    db()
-      .from("agent_runs")
-      .select(`${select}, agent:workspace_agents(name)`)
-      .neq("created_by", excludeUserId)
-      .order("created_at", { ascending: false })
-      .limit(limit),
-    db()
-      .from("workflow_runs")
-      .select(`${select}, workflow:workspace_workflows(name)`)
-      .neq("created_by", excludeUserId)
-      .order("created_at", { ascending: false })
-      .limit(limit),
-  ]);
+  // Sourcing-pipeline steps (+ KB onboarding) have no agent/workflow name, so
+  // give each a fixed label. Keeps the feed complete alongside classic runs.
+  const pipelineFeed = [
+    { table: "sourcing_strategy_runs", kind: "sourcing", name: "Sourcing" },
+    { table: "sourcing_plan_runs", kind: "sourcing-plan", name: "Sourcing Plan" },
+    { table: "qualification_runs", kind: "qualification", name: "Qualification" },
+    { table: "shortlist_runs", kind: "shortlist", name: "Shortlist" },
+    { table: "outreach_runs", kind: "outreach", name: "Outreach" },
+    { table: "kb_onboarding_runs", kind: "onboarding", name: "KB onboarding" },
+  ] as const;
+  const [{ data: agentRuns }, { data: workflowRuns }, ...pipelineResults] =
+    await Promise.all([
+      db()
+        .from("agent_runs")
+        .select(`${select}, agent:workspace_agents(name)`)
+        .neq("created_by", excludeUserId)
+        .order("created_at", { ascending: false })
+        .limit(limit),
+      db()
+        .from("workflow_runs")
+        .select(`${select}, workflow:workspace_workflows(name)`)
+        .neq("created_by", excludeUserId)
+        .order("created_at", { ascending: false })
+        .limit(limit),
+      ...pipelineFeed.map((p) =>
+        db()
+          .from(p.table)
+          .select(select)
+          .neq("created_by", excludeUserId)
+          .order("created_at", { ascending: false })
+          .limit(limit),
+      ),
+    ]);
 
   // Resolve runner names from Clerk in one pass.
   const { clerkClient } = await import("@clerk/nextjs/server");
@@ -143,6 +177,20 @@ export async function adminListRuns(
       runnerId: r.created_by,
       runnerName: r.created_by ? (nameById.get(r.created_by) ?? null) : null,
     })),
+    ...pipelineFeed.flatMap((p, i) =>
+      ((pipelineResults[i]?.data ?? []) as unknown as Raw[]).map((r) => ({
+        id: r.id,
+        kind: p.kind,
+        name: p.name,
+        provider: r.provider,
+        model: r.model,
+        tokens: (r.input_tokens ?? 0) + (r.output_tokens ?? 0),
+        costUsd: r.cost_usd,
+        createdAt: r.created_at,
+        runnerId: r.created_by,
+        runnerName: r.created_by ? (nameById.get(r.created_by) ?? null) : null,
+      })),
+    ),
   ]
     .sort((a, b) => b.createdAt.localeCompare(a.createdAt))
     .slice(0, limit);
