@@ -1,10 +1,11 @@
 "use client";
 
-import { useState, useTransition } from "react";
+import { useEffect, useState, useTransition } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { setCandidateFeedbackAction } from "@/lib/actions/shortlist";
 import { findCandidateEmailAction } from "@/lib/actions/enrichment";
+import { formatShortlistAddedAt, formatShortlistDateTime } from "@/lib/shortlist-time";
 import type { Candidate, CandidateFeedback } from "@/lib/types";
 import { Button } from "./ui";
 import {
@@ -33,6 +34,22 @@ function scoreClass(score: number | null): string {
   return "bg-coral-400/14 text-coral-400";
 }
 
+function useMinuteNow(enabled: boolean): Date | null {
+  const [now, setNow] = useState<Date | null>(null);
+
+  useEffect(() => {
+    if (!enabled) return;
+    // Intentional post-hydration update: relative labels should reflect the
+    // viewer's local clock, not the server render time.
+    // eslint-disable-next-line react-hooks/set-state-in-effect
+    setNow(new Date());
+    const id = window.setInterval(() => setNow(new Date()), 60_000);
+    return () => window.clearInterval(id);
+  }, [enabled]);
+
+  return now;
+}
+
 /**
  * Shortlist is the review surface: the candidates the Sourcing Agent found,
  * their scores, contact enrichment, and recruiter fit feedback. Running and
@@ -57,6 +74,7 @@ export function ShortlistPanel({
   const hasLiveEnrichment = connectedEnrichment.some((c) => c.live);
   const { toast, showToast } = useToast();
   const hasCandidates = candidates.length > 0;
+  const now = useMinuteNow(hasCandidates);
 
   return (
     <div>
@@ -108,6 +126,7 @@ export function ShortlistPanel({
                 <tr className="border-b border-navy-800/10 bg-cream-100/60 text-left text-xs uppercase tracking-wider text-navy-800/45">
                   <th className="px-4 py-2.5 font-semibold">Candidate</th>
                   <th className="px-3 py-2.5 font-semibold">Source</th>
+                  <th className="px-3 py-2.5 font-semibold">Added</th>
                   <th className="px-3 py-2.5 font-semibold">Email</th>
                   <th className="px-3 py-2.5 font-semibold">Score</th>
                   <th className="px-3 py-2.5 text-center font-semibold">Fit</th>
@@ -118,6 +137,7 @@ export function ShortlistPanel({
                   <CandidateRow
                     key={c.id}
                     candidate={c}
+                    now={now}
                     hasLiveEnrichment={hasLiveEnrichment}
                     onNeedEnrichment={() => setEnrichOpen(true)}
                     onToast={showToast}
@@ -144,11 +164,13 @@ export function ShortlistPanel({
 
 function CandidateRow({
   candidate: c,
+  now,
   hasLiveEnrichment,
   onNeedEnrichment,
   onToast,
 }: {
   candidate: Candidate;
+  now: Date | null;
   hasLiveEnrichment: boolean;
   onNeedEnrichment: () => void;
   onToast: (message: string) => void;
@@ -162,6 +184,10 @@ function CandidateRow({
   const [finding, setFinding] = useState(false);
   const [findMsg, setFindMsg] = useState<string | null>(null);
   const rawEntries = Object.entries(c.raw ?? {});
+  const addedAt = new Date(c.created_at);
+  const addedAtTitle = Number.isNaN(addedAt.getTime())
+    ? undefined
+    : formatShortlistDateTime(addedAt);
 
   // "Find email" for one candidate: use a connected one-click tool if there is
   // one, else open the enrichment dialog (the CSV round-trip / connect prompt).
@@ -267,6 +293,11 @@ function CandidateRow({
           </div>
         </td>
         <td className="px-3 py-2.5 text-navy-800/60">{c.source ?? "—"}</td>
+        <td className="px-3 py-2.5 text-xs font-medium text-navy-800/50" title={addedAtTitle}>
+          <span suppressHydrationWarning>
+            {now ? formatShortlistAddedAt(c.created_at, now) : addedAtTitle ?? "—"}
+          </span>
+        </td>
         <td className="px-3 py-2.5" onClick={(e) => e.stopPropagation()}>
           {email ? (
             <a
@@ -341,7 +372,7 @@ function CandidateRow({
       </tr>
       {open && (
         <tr className="border-b border-navy-800/8 bg-cream-100/30">
-          <td colSpan={5} className="px-4 py-3">
+          <td colSpan={6} className="px-4 py-3">
             {feedback === "rejected" && (
               <div className="mb-3" onClick={(e) => e.stopPropagation()}>
                 <label className="mb-1 block text-xs font-medium text-navy-800/55">
