@@ -31,7 +31,7 @@ export default async function ProjectDocumentsPage({
   const outputDocs = docs
     .filter(
       (d) =>
-        d.doc_type === "output" ||
+        (d.doc_type === "output" && d.is_active) ||
         (AGENT_OUTPUT_TYPES.has(d.doc_type ?? "") && d.is_active),
     )
     .sort((a, b) => b.created_at.localeCompare(a.created_at));

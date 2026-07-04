@@ -22,7 +22,7 @@ export default async function ProspectPage({
     prospectId,
     "file",
   );
-  const cvs = docs.filter((d) => d.doc_type === "cv");
+  const cvs = docs.filter((d) => d.doc_type === "cv" && d.is_active);
 
   const location = [prospect.city, prospect.country].filter(Boolean).join(", ");
 

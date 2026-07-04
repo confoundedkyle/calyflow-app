@@ -15,6 +15,7 @@ export default async function ClientFilesPage({
   if (!client) notFound();
 
   const docs = await listDocuments(session.workspaceId, "client", clientId, "file");
+  const activeDocs = docs.filter((d) => d.is_active);
 
   return (
     <>
@@ -28,7 +29,7 @@ export default async function ClientFilesPage({
       <DocExplorer
         scopeType="client"
         scopeId={clientId}
-        docs={docs}
+        docs={activeDocs}
         mode="files"
       />
     </>

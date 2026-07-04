@@ -17,6 +17,7 @@ export default async function ClientKnowledgePage({
   if (!client) notFound();
 
   const docs = await listDocuments(session.workspaceId, "client", clientId, "kb");
+  const activeDocs = docs.filter((d) => d.is_active);
 
   return (
     <>
@@ -31,7 +32,7 @@ export default async function ClientKnowledgePage({
       <DocExplorer
         scopeType="client"
         scopeId={clientId}
-        docs={docs}
+        docs={activeDocs}
         mode="kb"
         importSlot={
           env.firecrawlApiKey ? <ImportDomain clientId={clientId} /> : null

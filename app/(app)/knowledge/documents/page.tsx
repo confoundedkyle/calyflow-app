@@ -12,6 +12,7 @@ export default async function WorkspaceFilesPage() {
     session.workspaceId,
     "file",
   );
+  const activeDocs = docs.filter((d) => d.is_active);
 
   return (
     <>
@@ -25,7 +26,7 @@ export default async function WorkspaceFilesPage() {
       <DocExplorer
         scopeType="workspace"
         scopeId={session.workspaceId}
-        docs={docs}
+        docs={activeDocs}
         mode="files"
       />
     </>

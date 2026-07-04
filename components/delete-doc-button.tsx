@@ -1,7 +1,7 @@
 "use client";
 
 import { useTransition } from "react";
-import { deleteDocumentAction } from "@/lib/actions/documents";
+import { archiveDocumentAction } from "@/lib/actions/documents";
 
 export function DeleteDocButton({
   docId,
@@ -15,12 +15,12 @@ export function DeleteDocButton({
   function remove() {
     if (
       !window.confirm(
-        `Delete "${filename ?? "Untitled"}"? This cannot be undone.`,
+        `Archive "${filename ?? "Untitled"}"? It will be hidden from active document lists.`,
       )
     )
       return;
     startTransition(async () => {
-      await deleteDocumentAction(docId);
+      await archiveDocumentAction(docId);
     });
   }
 
@@ -30,7 +30,7 @@ export function DeleteDocButton({
       onClick={remove}
       disabled={pending}
       className="text-sm text-navy-800/40 transition hover:text-coral-400 disabled:opacity-40"
-      aria-label={`Delete ${filename ?? "Untitled"}`}
+      aria-label={`Archive ${filename ?? "Untitled"}`}
     >
       ✕
     </button>

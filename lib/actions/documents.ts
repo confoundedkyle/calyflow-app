@@ -76,12 +76,29 @@ function storageSafeName(name: string): string {
   );
 }
 
-function revalidateScope(scopeType: DocScope, scopeId: string) {
+async function revalidateScope(
+  workspaceId: string,
+  scopeType: DocScope,
+  scopeId: string,
+) {
   // "layout" so the sub-tabs (/knowledge + /files) refresh too.
-  if (scopeType === "workspace") revalidatePath("/knowledge", "layout");
-  else if (scopeType === "client") revalidatePath(`/clients/${scopeId}`, "layout");
-  else if (scopeType === "prospect") revalidatePath(`/talent-pool/${scopeId}`, "page");
-  else revalidatePath(`/clients/[clientId]/projects/${scopeId}`, "page");
+  if (scopeType === "workspace") {
+    revalidatePath("/knowledge", "layout");
+  } else if (scopeType === "client") {
+    revalidatePath(`/clients/${scopeId}`, "layout");
+  } else if (scopeType === "prospect") {
+    revalidatePath(`/talent-pool/${scopeId}`);
+  } else {
+    const project = await getProject(workspaceId, scopeId);
+    // Revalidate the literal documents page for the current mutation, plus the
+    // project layout pattern so readiness badges and agent tabs see the change.
+    if (project) {
+      revalidatePath(
+        `/clients/${project.client.id}/projects/${project.id}/documents`,
+      );
+    }
+    revalidatePath("/clients/[clientId]/projects/[projectId]", "layout");
+  }
 }
 
 export async function createPastedDocumentAction(formData: FormData) {
@@ -111,7 +128,7 @@ export async function createPastedDocumentAction(formData: FormData) {
     created_by: session.userId,
   });
   if (error) throw error;
-  revalidateScope(scopeType, scopeId);
+  await revalidateScope(session.workspaceId, scopeType, scopeId);
 }
 
 /**
@@ -166,7 +183,7 @@ export async function importDocumentFromUrlAction(formData: FormData) {
     created_by: session.userId,
   });
   if (error) throw error;
-  revalidateScope(scopeType, scopeId);
+  await revalidateScope(session.workspaceId, scopeType, scopeId);
 }
 
 export async function uploadDocumentAction(formData: FormData) {
@@ -216,7 +233,7 @@ export async function uploadDocumentAction(formData: FormData) {
       `Couldn't save “${file.name}”. The file may be corrupted or its text couldn't be read.`,
     );
   }
-  revalidateScope(scopeType, scopeId);
+  await revalidateScope(session.workspaceId, scopeType, scopeId);
 }
 
 /** Client KB is a single free-text notes doc in V1 (SPEC §4 matrix). */
@@ -309,7 +326,7 @@ export async function uploadInputForRunAction(
     created_by: session.userId,
   });
   if (error) throw error;
-  revalidateScope("project", scopeId);
+  await revalidateScope(session.workspaceId, "project", scopeId);
   return { docId: id };
 }
 
@@ -338,7 +355,7 @@ export async function renameDocumentAction(docId: string, filename: string) {
     .update({ filename: trimmed })
     .eq("id", docId);
   if (error) throw error;
-  revalidateScope(doc.scope_type, doc.scope_id);
+  await revalidateScope(session.workspaceId, doc.scope_type, doc.scope_id);
 }
 
 export async function updateDocumentTextAction(docId: string, text: string) {
@@ -352,7 +369,7 @@ export async function updateDocumentTextAction(docId: string, text: string) {
     .update({ extracted_text: text })
     .eq("id", docId);
   if (error) throw error;
-  revalidateScope(doc.scope_type, doc.scope_id);
+  await revalidateScope(session.workspaceId, doc.scope_type, doc.scope_id);
 }
 
 /** Creates an empty markdown note in a client or workspace KB and returns its
@@ -382,7 +399,7 @@ export async function createKbNoteAction(
     created_by: session.userId,
   });
   if (error) throw error;
-  revalidateScope(scopeType, scopeId);
+  await revalidateScope(session.workspaceId, scopeType, scopeId);
   return { docId: id };
 }
 
@@ -411,21 +428,24 @@ export async function getDocumentDownloadUrlAction(
   return { url: data.signedUrl };
 }
 
-export async function deleteDocumentAction(docId: string) {
+/** Archive a document instead of hard-deleting it. Run-history tables keep
+ * output_doc_id links to documents, so deleting rows can break historical run
+ * pages or fail on foreign-key constraints. Archiving hides the document from
+ * active document pickers while preserving provenance and downloads. */
+export async function archiveDocumentAction(docId: string) {
   const session = await requireSession();
   const doc = await getDocument(session.workspaceId, docId);
   if (!doc) throw new Error("Document not found");
-  if (doc.storage_path) {
-    await db().storage.from("documents").remove([doc.storage_path]);
-  }
-  // Output docs may be referenced by runs; detach before deleting.
-  await db()
-    .from("workflow_runs")
-    .update({ output_doc_id: null })
-    .eq("output_doc_id", docId);
-  const { error } = await db().from("documents").delete().eq("id", docId);
+  const { error } = await db()
+    .from("documents")
+    .update({ is_active: false })
+    .eq("id", docId);
   if (error) throw error;
-  revalidateScope(doc.scope_type, doc.scope_id);
+  await revalidateScope(session.workspaceId, doc.scope_type, doc.scope_id);
+}
+
+export async function deleteDocumentAction(docId: string) {
+  await archiveDocumentAction(docId);
 }
 
 export async function setDocumentActiveAction(docId: string, active: boolean) {
@@ -440,7 +460,7 @@ export async function setDocumentActiveAction(docId: string, active: boolean) {
     .update({ is_active: active })
     .eq("id", docId);
   if (error) throw error;
-  revalidateScope(doc.scope_type, doc.scope_id);
+  await revalidateScope(session.workspaceId, doc.scope_type, doc.scope_id);
 }
 
 /** Read a document's extracted text (used by the demo to show an agent's saved

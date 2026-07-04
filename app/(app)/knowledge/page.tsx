@@ -22,6 +22,7 @@ export default async function KnowledgeBasePage({
     getKbOnboardingConversation(session.workspaceId, conversationParam),
     getPrimaryRunModel(session.workspaceId),
   ]);
+  const activeDocs = docs.filter((d) => d.is_active);
 
   return (
     <>
@@ -35,11 +36,11 @@ export default async function KnowledgeBasePage({
 
       <KbOnboardingPanel
         model={model}
-        capturedFilenames={docs.map((d) => d.filename ?? "")}
+        capturedFilenames={activeDocs.map((d) => d.filename ?? "")}
         initialConversation={conversation}
       />
 
-      {docs.length > 0 && (
+      {activeDocs.length > 0 && (
         <section className="mt-8">
           <h2 className="mb-3 text-sm font-bold uppercase tracking-wider text-navy-800/45">
             Your documents
@@ -47,7 +48,7 @@ export default async function KnowledgeBasePage({
           <DocExplorer
             scopeType="workspace"
             scopeId={session.workspaceId}
-            docs={docs}
+            docs={activeDocs}
             mode="kb"
           />
         </section>

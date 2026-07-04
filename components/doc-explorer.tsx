@@ -6,8 +6,8 @@ import { useSearchParams } from "next/navigation";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
 import {
+  archiveDocumentAction,
   createKbNoteAction,
-  deleteDocumentAction,
   getDocumentDownloadUrlAction,
   renameDocumentAction,
   updateDocumentTextAction,
@@ -128,14 +128,16 @@ export function DocExplorer({
   // Incrementing key re-mounts the Toast so a re-save restarts its timer.
   const [toastKey, setToastKey] = useState(0);
   const [toastMsg, setToastMsg] = useState("Saved");
+  const [archivedIds, setArchivedIds] = useState<Set<string>>(() => new Set());
 
   function showToast(message: string) {
     setToastMsg(message);
     setToastKey((k) => k + 1);
   }
 
-  // Fall back to the first doc if the selected one was deleted.
-  const selected = docs.find((d) => d.id === selectedId) ?? docs[0] ?? null;
+  const visibleDocs = docs.filter((d) => d.is_active && !archivedIds.has(d.id));
+  // Fall back to the first visible doc if the selected one was archived.
+  const selected = visibleDocs.find((d) => d.id === selectedId) ?? visibleDocs[0] ?? null;
 
   function select(doc: Doc) {
     setSelectedId(doc.id);
@@ -313,20 +315,26 @@ export function DocExplorer({
   function remove(doc: Doc) {
     if (
       !window.confirm(
-        `Delete "${doc.filename ?? "Untitled"}"? This cannot be undone.`,
+        `Archive "${doc.filename ?? "Untitled"}"? It will be hidden from active document lists.`,
       )
     )
       return;
     startTransition(async () => {
       try {
         setError(null);
-        await deleteDocumentAction(doc.id);
+        await archiveDocumentAction(doc.id);
+        setArchivedIds((ids) => {
+          const next = new Set(ids);
+          next.add(doc.id);
+          return next;
+        });
         if (doc.id === selectedId) {
           setSelectedId(null);
           setEditing(false);
         }
+        showToast("Document archived");
       } catch (err) {
-        setError(err instanceof Error ? err.message : "Could not delete");
+        setError(err instanceof Error ? err.message : "Could not archive");
       }
     });
   }
@@ -416,9 +424,9 @@ export function DocExplorer({
 
           {/* File list + persistent drag & drop hint */}
           <div className="flex flex-1 flex-col overflow-y-auto p-1.5 lg:max-h-[40rem]">
-            {docs.length > 0 && (
+            {visibleDocs.length > 0 && (
               <ul className="space-y-px">
-              {docs.map((doc) => {
+              {visibleDocs.map((doc) => {
                 const active = selected?.id === doc.id;
                 return (
                   <li key={doc.id} className="group relative">
@@ -453,7 +461,7 @@ export function DocExplorer({
                       type="button"
                       disabled={pending}
                       onClick={() => remove(doc)}
-                      aria-label={`Delete ${doc.filename}`}
+                      aria-label={`Archive ${doc.filename}`}
                       className="absolute right-1.5 top-1/2 -translate-y-1/2 rounded p-1 text-navy-800/30 opacity-0 transition hover:bg-coral-400/12 hover:text-coral-400 focus-visible:opacity-100 group-hover:opacity-100"
                     >
                       ✕
@@ -463,12 +471,12 @@ export function DocExplorer({
               })}
               </ul>
             )}
-            {docs.length === 0 && !allowUpload && (
+            {visibleDocs.length === 0 && !allowUpload && (
               <p className="flex flex-1 items-center justify-center px-4 py-10 text-center text-sm text-navy-800/40">
                 {emptyHint ?? "Nothing here yet."}
               </p>
             )}
-            {allowUpload && docs.length < DROP_HINT_MAX && (
+            {allowUpload && visibleDocs.length < DROP_HINT_MAX && (
               <label
                 title="Click to choose files, or drag & drop"
                 className="group mt-1.5 flex flex-1 cursor-pointer flex-col items-center justify-center gap-1.5 rounded-lg border-2 border-dashed border-navy-800/15 px-4 py-10 text-center transition hover:border-sky-300 hover:bg-sky-300/10"
