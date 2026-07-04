@@ -162,6 +162,18 @@ function snippet(text: string, query: string): string {
   return text.slice(start, start + 240).replace(/\s+/g, " ").trim();
 }
 
+function searchSnippet(text: string, query: string, terms: string[]): string {
+  const lower = text.toLowerCase();
+  const phrase = query.trim().toLowerCase();
+  let i = phrase ? lower.indexOf(phrase) : -1;
+  if (i < 0) {
+    const term = terms.find((t) => lower.includes(t));
+    i = term ? lower.indexOf(term) : 0;
+  }
+  const start = Math.max(0, i - 80);
+  return text.slice(start, start + 260).replace(/\s+/g, " ").trim();
+}
+
 function buildAll(ctx: ToolContext): ToolSet {
   return {
     calyflow_search_documents: tool({
@@ -216,6 +228,134 @@ function buildAll(ctx: ToolContext): ToolSet {
           filename: doc.filename ?? "Untitled",
           text: text.slice(0, READ_DOC_CHAR_CAP),
           truncated: text.length > READ_DOC_CHAR_CAP,
+        };
+      },
+    }),
+
+    calyflow_search_linkedin_connections: tool({
+      description:
+        "Search Calyflow's local LinkedIn Connections module for people the workspace already knows. Matches names, LinkedIn URLs, contact fields, location, notes, profile JSON, and attached prospect CV text. Use before or alongside external sourcing so warm known people are not missed.",
+      inputSchema: z.object({
+        query: z
+          .string()
+          .describe(
+            "Role/search keywords, e.g. 'finance London FP&A' or 'backend engineer Kafka Berlin'.",
+          ),
+        limit: z
+          .number()
+          .int()
+          .positive()
+          .max(20)
+          .optional()
+          .describe("Maximum matches to return. Defaults to 10."),
+      }),
+      execute: async ({ query, limit }) => {
+        const q = query.trim().toLowerCase();
+        const terms = q
+          .split(/[^a-z0-9+#.]+/i)
+          .map((t) => t.trim().toLowerCase())
+          .filter((t) => t.length >= 2);
+        const max = Math.min(limit ?? 10, 20);
+
+        const [{ data: prospects, error: prospectsError }, { data: docs, error: docsError }] =
+          await Promise.all([
+            db()
+              .from("talent_prospects")
+              .select(
+                "id, name, email, phone, country, city, linkedin_url, notes, profile, updated_at",
+              )
+              .eq("workspace_id", ctx.workspaceId)
+              .order("updated_at", { ascending: false })
+              .limit(500),
+            db()
+              .from("documents")
+              .select("scope_id, filename, doc_type, extracted_text")
+              .eq("workspace_id", ctx.workspaceId)
+              .eq("scope_type", "prospect")
+              .eq("is_active", true)
+              .limit(2000),
+          ]);
+        if (prospectsError) return { error: "Could not search LinkedIn Connections." };
+        if (docsError) return { error: "Could not read LinkedIn Connection CVs." };
+
+        const docsByProspect = new Map<
+          string,
+          { filename: string | null; doc_type: string | null; extracted_text: string | null }[]
+        >();
+        for (const doc of docs ?? []) {
+          const scopeId = String(doc.scope_id ?? "");
+          if (!scopeId) continue;
+          const list = docsByProspect.get(scopeId) ?? [];
+          list.push({
+            filename: doc.filename ?? null,
+            doc_type: doc.doc_type ?? null,
+            extracted_text: doc.extracted_text ?? null,
+          });
+          docsByProspect.set(scopeId, list);
+        }
+
+        const scored = (prospects ?? [])
+          .map((p) => {
+            const cvDocs = docsByProspect.get(String(p.id)) ?? [];
+            const profileText = JSON.stringify(p.profile ?? {});
+            const cvText = cvDocs.map((d) => d.extracted_text ?? "").join("\n");
+            const fields = [
+              p.name,
+              p.email,
+              p.phone,
+              p.country,
+              p.city,
+              p.linkedin_url,
+              p.notes,
+              profileText,
+              cvText,
+            ]
+              .filter(Boolean)
+              .join("\n");
+            const haystack = fields.toLowerCase();
+            const phraseScore = q && haystack.includes(q) ? 5 : 0;
+            const termScore = terms.reduce(
+              (sum, term) => sum + (haystack.includes(term) ? 1 : 0),
+              0,
+            );
+            const score = phraseScore + termScore;
+            return { p, cvDocs, profileText, score };
+          })
+          .filter((item) => (q ? item.score > 0 : true))
+          .sort((a, b) => b.score - a.score)
+          .slice(0, max);
+
+        return {
+          matches: scored.map(({ p, cvDocs, profileText, score }) => ({
+            prospectId: p.id,
+            name: p.name,
+            linkedinUrl: p.linkedin_url,
+            email: p.email,
+            phone: p.phone,
+            location: [p.city, p.country].filter(Boolean).join(", ") || null,
+            notesSnippet: p.notes
+              ? searchSnippet(p.notes, query, terms)
+              : null,
+            profileSnippet:
+              profileText && profileText !== "{}"
+                ? searchSnippet(profileText, query, terms)
+                : null,
+            cvSnippets: cvDocs
+              .filter((d) => d.extracted_text)
+              .slice(0, 3)
+              .map((d) => ({
+                filename: d.filename ?? "CV",
+                docType: d.doc_type,
+                snippet: searchSnippet(d.extracted_text ?? "", query, terms),
+              })),
+            score,
+            knownInWorkspace: true,
+          })),
+          count: scored.length,
+          searched: {
+            prospects: prospects?.length ?? 0,
+            prospectDocuments: docs?.length ?? 0,
+          },
         };
       },
     }),
@@ -4173,6 +4313,7 @@ export function buildTools(ctx: ToolContext, allowed: string[]): ToolSet {
 export const ALL_TOOL_NAMES = [
   "calyflow_search_documents",
   "calyflow_read_document",
+  "calyflow_search_linkedin_connections",
   "airtable_list_bases",
   "airtable_list_tables",
   "airtable_query_records",

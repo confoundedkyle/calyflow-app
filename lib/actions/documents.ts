@@ -32,7 +32,7 @@ async function assertScope(
       throw new Error("Client not found");
   } else if (scopeType === "prospect") {
     if (!(await getProspect(session.workspaceId, scopeId)))
-      throw new Error("Prospect not found");
+      throw new Error("Connection not found");
   } else {
     if (!(await getProject(session.workspaceId, scopeId)))
       throw new Error("Project not found");

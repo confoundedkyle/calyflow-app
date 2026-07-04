@@ -5,7 +5,7 @@ import { DocHeader, Markdown } from "@/components/docs/doc-blocks";
 export const metadata: Metadata = {
   title: "Modules",
   description:
-    "Optional Calyflow modules — ATS, CRM, and Talent Pool — that turn synced data into working lists you manage in the app.",
+    "Optional Calyflow modules — ATS, CRM, and LinkedIn Connections — that turn synced data into working lists you manage in the app.",
 };
 
 const BODY = `
@@ -14,8 +14,8 @@ into working lists inside Calyflow. There are three:
 
 - **[ATS](/docs/modules/ats)** — candidates, organized by the role they're up for.
 - **[CRM](/docs/modules/crm)** — the companies you work with and the people at them.
-- **[Talent Pool](/docs/modules/talent-pool)** — a pipeline of interesting people
-  to keep warm for the future, not tied to one role.
+- **[LinkedIn Connections](/docs/modules/talent-pool)** — people your team knows
+  from LinkedIn imports, with notes, CVs, and relationship context.
 
 ## Turning modules on and off
 
@@ -30,7 +30,7 @@ add by hand):
 
 - **ATS** ← your applicant tracking system (Greenhouse, Lever, Bullhorn, Ashby, …)
 - **CRM** ← your CRM (HubSpot, Pipedrive, Attio, …)
-- **Talent Pool** ← sourcing & enrichment tools, plus manual adds
+- **LinkedIn Connections** ← CSV imports, sourcing & enrichment tools, plus manual adds
 
 See [Connectors](/docs/connectors) for how to link each one.
 `;
@@ -41,7 +41,7 @@ export default function ModulesOverviewPage() {
       <DocHeader
         eyebrow="How Calyflow is organized"
         title="Modules"
-        lead="Optional areas — ATS, CRM, Talent Pool — that turn synced data into lists you manage."
+        lead="Optional areas — ATS, CRM, LinkedIn Connections — that turn synced data into lists you manage."
       />
       <Markdown>{BODY}</Markdown>
       <p className="mt-8 text-sm text-navy-800/55">
@@ -50,7 +50,7 @@ export default function ModulesOverviewPage() {
         {" · "}
         <Link href="/docs/modules/crm" className="font-semibold text-mint-700 hover:underline">CRM</Link>
         {" · "}
-        <Link href="/docs/modules/talent-pool" className="font-semibold text-mint-700 hover:underline">Talent Pool</Link>
+        <Link href="/docs/modules/talent-pool" className="font-semibold text-mint-700 hover:underline">LinkedIn Connections</Link>
       </p>
     </article>
   );

@@ -15,7 +15,7 @@ const DOC_PAGES: { path: string; title: string; desc: string }[] = [
   { path: "/docs/projects", title: "Clients & projects", desc: "How work is organized: clients are who you recruit for, projects are the roles." },
   { path: "/docs/knowledge-base", title: "Knowledge base", desc: "Workspace and client context that's auto-injected into every run." },
   { path: "/docs/documents", title: "Documents & project files", desc: "Inputs agents read (JD, intake notes, scorecard) and the outputs they create." },
-  { path: "/docs/modules", title: "Modules", desc: "Optional ATS, CRM, and Talent Pool areas fed by your connectors." },
+  { path: "/docs/modules", title: "Modules", desc: "Optional ATS, CRM, and LinkedIn Connections areas fed by your connectors." },
   { path: "/docs/connectors", title: "Connectors", desc: "Connect your ATS, CRM, spreadsheets, mailbox, Slack, and sourcing tools." },
   { path: "/docs/automation/slack", title: "Running agents from Slack", desc: "Trigger agents and receive project reports in Slack." },
   { path: "/docs/security", title: "Security & privacy", desc: "How data and credentials are protected." },

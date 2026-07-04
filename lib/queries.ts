@@ -1288,7 +1288,7 @@ export async function getCandidate(
   return data as AtsCandidate | null;
 }
 
-// --- Target Talent Pool ---
+// --- LinkedIn Connections ---
 
 export async function listProspects(
   workspaceId: string,
