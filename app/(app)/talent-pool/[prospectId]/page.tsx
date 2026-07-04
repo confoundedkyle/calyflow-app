@@ -32,7 +32,7 @@ export default async function ProspectPage({
         href="/talent-pool"
         className="mb-4 inline-block text-sm text-navy-800/45 hover:text-mint-700"
       >
-        ← Target Talent Pool
+        ← LinkedIn Connections
       </Link>
       <PageHeader title={prospect.name} />
 

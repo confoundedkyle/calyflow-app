@@ -70,33 +70,35 @@ but preserves your accounts and leads.
   },
   "talent-pool": {
     key: "talent-pool",
-    title: "Talent Pool module",
-    lead: "A pipeline of interesting people to keep warm — not tied to a single role.",
+    title: "LinkedIn Connections module",
+    lead: "A shared map of people your recruiting team knows from LinkedIn imports.",
     body: `
-The **Talent Pool** is a database of prospects you want to keep warm for the
-future — strong people who aren't attached to one specific role. Each prospect can
-carry skills, notes, contact details, and a CV.
+**LinkedIn Connections** is a shared database of people your recruiting team knows
+from LinkedIn imports and manual adds. Each person can carry a LinkedIn URL,
+contact details, notes, and a CV, so the team can see who is already known before
+starting a new search.
 
 ## Where the data comes from
 
-Prospects come from **sourcing & enrichment tools** (and manual adds). Sourcing
-agents can add the people they find here. See the
+People come from **CSV imports**, sourcing & enrichment tools, and manual adds.
+Sourcing agents can add the people they find here. See the
 [sourcing & enrichment connectors](/docs/connectors).
 
 ## What you can do
 
-- Build a niche bench of talent for repeat roles.
-- Store skills, notes, and CVs against each prospect.
-- Pull prospects into outreach when the right role opens.
+- Import a simple list of names and LinkedIn URLs.
+- See which people are already known to your team.
+- Store notes, contact details, and CVs against each person.
+- Pull warm connections into outreach when the right role opens.
 
-**Example:** you regularly place fintech backend engineers — keep a warm pool of
-them, and when a new role opens, pull the best-matched prospects straight into an
-outreach run.
+**Example:** several recruiters import their LinkedIn connection lists. When a new
+finance role opens, Calyflow can show which matching people are already known by
+the team before anyone starts cold sourcing.
 
 ## Turning it on
 
 An admin enables it under **Settings → Modules**. Turning it off hides the module
-but keeps every prospect.
+but keeps every connection.
 `,
   },
 };

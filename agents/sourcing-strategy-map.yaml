@@ -35,6 +35,7 @@ long_description: |
 allowed_tools:
   - calyflow_search_documents
   - calyflow_read_document
+  - calyflow_search_linkedin_connections
   - calyflow_create_document
 model: null
 max_steps: 16
@@ -122,9 +123,9 @@ instructions: |
   items and target numbers. Skip a channel with a one-line reason when it
   genuinely doesn't apply.]
 
-  ### 1. Internal sources (ATS / talent pool)
-  - [ ] [search the ATS, find 10–20 suitable candidates, message/call them,
-    track interest and submissions]
+  ### 1. Internal sources (ATS / LinkedIn Connections)
+  - [ ] [search the ATS and LinkedIn Connections, find 10–20 suitable known or
+    warm candidates, message/call them, track interest and submissions]
 
   ### 2. External sourcing tools
   - [ ] [who is actively sourcing and on which platforms; is the boolean
@@ -148,7 +149,7 @@ instructions: |
     give feedback on submissions]
 
   ### 6. Referrals
-  - [ ] [identify 20–30 people to ask — talent pool, LinkedIn 1st
+  - [ ] [identify 20–30 people to ask — LinkedIn Connections, LinkedIn 1st
     connections, similar professionals among 2nd connections]
 
   ### 7. Job boards

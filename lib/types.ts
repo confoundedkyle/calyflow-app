@@ -180,7 +180,7 @@ export interface WorkflowRun {
   created_at: string;
 }
 
-// --- Activatable workspace modules (CRM / ATS / Target Talent Pool) ---
+// --- Activatable workspace modules (CRM / ATS / LinkedIn Connections) ---
 
 export type ModuleKey = "crm" | "ats" | "talent_pool";
 
@@ -205,10 +205,10 @@ export const MODULES: {
   },
   {
     key: "talent_pool",
-    label: "Target Talent Pool",
+    label: "LinkedIn Connections",
     href: "/talent-pool",
     description:
-      "Build a niche prospect pipeline with skills, notes, and CVs.",
+      "Track candidates your team knows from LinkedIn imports, notes, and CVs.",
   },
 ];
 

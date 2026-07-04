@@ -42,6 +42,10 @@ the read tools for what's not in it (CVs, a specific/large doc).
 `calyflow_search_documents` matches content **+ filename + doc_type**, returns
 only **active** docs; `calyflow_read_document` fetches full text by id;
 `calyflow_create_document` saves an `output` doc.
+`calyflow_search_linkedin_connections` searches the local LinkedIn Connections
+module (`talent_prospects` + prospect-scoped CV documents) so sourcing agents can
+surface warm people already known to the workspace before or alongside external
+sources.
 
 ### Agent YAML config (`agents/<slug>.yaml`)
 - `context`: `recruiting-project` (default) | `business-development`. Drives where

@@ -67,9 +67,9 @@ export function TalentProspects({
         }
         setAdding(false);
         setCv(null);
-        showToast(cv ? "Prospect added with CV" : "Prospect added");
+        showToast(cv ? "Connection added with CV" : "Connection added");
       } catch (err) {
-        setError(err instanceof Error ? err.message : "Could not add prospect");
+        setError(err instanceof Error ? err.message : "Could not add connection");
       }
     });
   }
@@ -77,8 +77,8 @@ export function TalentProspects({
   return (
     <>
       <PageHeader
-        title="Target Talent Pool"
-        description="Build a niche pipeline of prospects — open one to attach a CV."
+        title="LinkedIn Connections"
+        description="Track people your team knows from LinkedIn imports — open one to attach a CV."
         action={
           <div className="flex gap-2">
             <Button
@@ -97,7 +97,7 @@ export function TalentProspects({
                 setImportingCsv(false);
               }}
             >
-              {adding ? "Close" : "Add prospect"}
+              {adding ? "Close" : "Add connection"}
             </Button>
           </div>
         }
@@ -162,7 +162,7 @@ export function TalentProspects({
             </div>
             <div className="flex items-center gap-3 sm:col-span-2">
               <Button type="submit" variant="small" disabled={pending}>
-                {pending ? "Adding…" : "Add prospect"}
+                {pending ? "Adding…" : "Add connection"}
               </Button>
               {error && (
                 <p role="alert" className="text-xs text-coral-400">
@@ -177,11 +177,11 @@ export function TalentProspects({
       {prospects.length === 0 ? (
         !adding && (
           <EmptyState
-            title="No prospects yet"
-            description="Add your first prospect — open their profile afterwards to attach a CV."
+            title="No connections yet"
+            description="Add your first LinkedIn connection — open their profile afterwards to attach a CV."
             action={
               <Button variant="small" onClick={() => setAdding(true)}>
-                Add prospect
+                Add connection
               </Button>
             }
           />
@@ -192,8 +192,8 @@ export function TalentProspects({
             <input
               value={query}
               onChange={(e) => setQuery(e.target.value)}
-              placeholder="Search prospects…"
-              aria-label="Search prospects"
+              placeholder="Search connections…"
+              aria-label="Search connections"
               className={`${inputClass} max-w-md`}
             />
           </div>
@@ -262,7 +262,7 @@ function ProspectRow({
       try {
         setError(null);
         await deleteProspectAction(prospect.id);
-        showToast("Prospect deleted");
+        showToast("Connection deleted");
       } catch (err) {
         setError(err instanceof Error ? err.message : "Could not delete");
       }
@@ -280,7 +280,7 @@ function ProspectRow({
       try {
         setError(null);
         await updateProspectAction(formData);
-        showToast("Prospect updated");
+        showToast("Connection updated");
         setEditing(false);
       } catch (err) {
         setError(err instanceof Error ? err.message : "Could not save");
