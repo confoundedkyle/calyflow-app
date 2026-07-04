@@ -117,13 +117,23 @@ async function getClerkSession(): Promise<Session | null> {
   };
 
   if (!clerkOrgId) {
-    // First authenticated request with no active org: reuse the user's first
-    // org, or auto-create one with safe defaults (SPEC §9).
+    // No active org in the session token (the app doesn't force one): resolve
+    // the user's org from their memberships. This MUST be deterministic — Clerk
+    // gives no ordering guarantee for the membership list, so `data[0]` can
+    // return a *different* org between two requests seconds apart. When it does,
+    // `session.workspaceId` flips and a resource just created under workspace A
+    // becomes invisible under workspace B ("Client not found" 500), self-healing
+    // only on reload. Pin to the user's first-joined org (their primary
+    // workspace) by sorting on membership createdAt, and pull a full page so a
+    // paginated default can't hide the primary org.
     const client = await clerkClient();
     const memberships = await client.users.getOrganizationMembershipList({
       userId,
+      limit: 100,
     });
-    const first = memberships.data[0];
+    const first = [...memberships.data].sort(
+      (a, b) => a.createdAt - b.createdAt,
+    )[0];
     if (first) {
       clerkOrgId = first.organization.id;
       role = first.role === "org:admin" ? "admin" : "member";
