@@ -652,22 +652,27 @@ export function SourcingPanel({
               <span aria-hidden className="text-xs text-navy-800/35">
                 {targetsOpen ? "▾" : "▸"}
               </span>
-              <span className="flex min-w-0 flex-1 flex-wrap items-center gap-x-4 gap-y-1 text-sm">
-                <span className="text-navy-800/70">
-                  <span className="font-semibold text-navy-900">
-                    {qualifiedCount}
-                    {goalNum ? `/${goalNum}` : ""}
-                  </span>{" "}
-                  qualified
+              <span className="min-w-0 flex-1">
+                <span className="block text-xs font-bold uppercase tracking-wider text-navy-800/45">
+                  This session goal &amp; budget
                 </span>
-                <span className="text-navy-800/70">
-                  <span className="font-semibold text-navy-900">
-                    ${spentUsd.toFixed(2)}
+                <span className="mt-1 flex min-w-0 flex-wrap items-center gap-x-4 gap-y-1 text-sm">
+                  <span className="text-navy-800/70">
+                    <span className="font-semibold text-navy-900">
+                      {qualifiedCount}
+                      {goalNum ? `/${goalNum}` : ""}
+                    </span>{" "}
+                    qualified
                   </span>
-                  {budgetNum ? ` / $${budgetNum.toFixed(2)}` : ""} spent
-                </span>
-                <span className="hidden min-w-0 truncate text-xs text-navy-800/45 sm:inline">
-                  {connectors.length > 0 ? connectors.join(", ") : "web & GitHub"}
+                  <span className="text-navy-800/70">
+                    <span className="font-semibold text-navy-900">
+                      ${spentUsd.toFixed(2)}
+                    </span>
+                    {budgetNum ? ` / $${budgetNum.toFixed(2)}` : ""} spent
+                  </span>
+                  <span className="hidden min-w-0 truncate text-xs text-navy-800/45 sm:inline">
+                    {connectors.length > 0 ? connectors.join(", ") : "web & GitHub"}
+                  </span>
                 </span>
               </span>
               {/* Slim goal progress preview when collapsed */}

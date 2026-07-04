@@ -3,6 +3,8 @@ import { notFound, redirect } from "next/navigation";
 import { getSession } from "@/lib/auth";
 import { getProject } from "@/lib/queries";
 import { setProjectStatusAction } from "@/lib/actions/clients";
+import { effectiveProjectBudgetUsd } from "@/lib/shortlist/budget";
+import { shortlistSpentUsd } from "@/lib/shortlist/spend";
 import { Button } from "@/components/ui";
 import { ProjectTabNav } from "@/components/project-tab-nav";
 
@@ -18,6 +20,8 @@ export default async function ProjectLayout({
   const { clientId, projectId } = await params;
   const project = await getProject(session.workspaceId, projectId);
   if (!project || project.client.id !== clientId) notFound();
+  const projectSpentUsd = await shortlistSpentUsd(projectId);
+  const projectBudgetUsd = effectiveProjectBudgetUsd(project.sourcing_budget_usd);
 
   return (
     <>
@@ -32,7 +36,13 @@ export default async function ProjectLayout({
               {project.client.name}
             </Link>
           </div>
-          <h1 className="text-xl font-bold leading-tight">{project.name}</h1>
+          <div className="flex flex-wrap items-baseline gap-x-3 gap-y-0.5">
+            <h1 className="text-xl font-bold leading-tight">{project.name}</h1>
+            <span className="text-sm text-navy-800/45">
+              AI credits: ${projectSpentUsd.toFixed(2)} / $
+              {projectBudgetUsd.toFixed(2)} project budget
+            </span>
+          </div>
         </div>
         <form
           action={setProjectStatusAction.bind(
