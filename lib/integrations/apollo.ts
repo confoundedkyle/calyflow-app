@@ -11,7 +11,13 @@ const API = "https://api.apollo.io";
 
 const DEFAULT_LIMIT = 10;
 const HARD_LIMIT = 100;
+const HARD_MAX_SEARCHES = 24;
+const MAX_TIER_PAGES = 4;
+const LADDER_CHAR_CAP = 14_000;
 const CHAR_CAP = 12_000;
+
+const clampInt = (n: number, lo: number, hi: number) =>
+  Math.max(lo, Math.min(hi, Math.floor(n)));
 
 export interface ApolloAdapter extends ConnectorAdapter {
   searchPeople(
@@ -22,9 +28,16 @@ export interface ApolloAdapter extends ConnectorAdapter {
       titles?: string[];
       seniorities?: string[];
       locations?: string[];
+      page?: number;
       limit?: number;
     },
   ): Promise<{ text: string; count: number; truncated: boolean }>;
+  sourcePeople(
+    apiKey: string,
+    args: ApolloSourceArgs,
+    spec: ApolloLadderSpec,
+    record?: (searches: number, detail?: unknown) => Promise<void> | void,
+  ): Promise<{ text: string; count: number; truncated: boolean; searches: number }>;
   enrichPerson(
     apiKey: string,
     args: {
@@ -98,6 +111,49 @@ interface ApolloPerson {
   organization?: ApolloOrganization | null;
 }
 
+export interface ApolloSearchArgs {
+  domain?: string;
+  company?: string;
+  titles?: string[];
+  seniorities?: string[];
+  locations?: string[];
+  page?: number;
+  limit?: number;
+}
+
+export interface ApolloSourceArgs {
+  currentTitles: string[];
+  adjacentTitles?: string[];
+  companies?: string[];
+  domain?: string;
+  location?: string;
+  seniorities?: string[];
+  targetCount?: number;
+  maxSearches?: number;
+}
+
+export interface ApolloLadderTier {
+  name: string;
+  weight: number;
+  titlesFrom?: string;
+  useCompanies?: boolean;
+  useDomain?: boolean;
+  useLocation?: boolean;
+  useSeniorities?: boolean;
+  pages?: number;
+  limit?: number;
+}
+
+export interface ApolloLadderSpec {
+  defaults: {
+    targetCount: number;
+    maxSearches: number;
+    limit?: number;
+    concurrency?: number;
+  };
+  tiers: ApolloLadderTier[];
+}
+
 interface ApolloCompany {
   name?: string | null;
   primary_domain?: string | null;
@@ -142,6 +198,132 @@ function renderPeople(people: ApolloPerson[]): { text: string; truncated: boolea
   }
   return { text: lines.join("\n"), truncated };
 }
+
+async function rawPeopleSearch(
+  apiKey: string,
+  args: ApolloSearchArgs,
+): Promise<{ people: ApolloPerson[]; total: number }> {
+  if (!args.domain && !args.company && !args.titles?.length) {
+    return { people: [], total: 0 };
+  }
+  const perPage = Math.min(args.limit ?? DEFAULT_LIMIT, HARD_LIMIT);
+  const body: Record<string, unknown> = {
+    page: args.page ?? 1,
+    per_page: perPage,
+  };
+  if (args.domain) body.q_organization_domains = args.domain;
+  if (args.company) body.q_organization_name = args.company;
+  if (args.titles?.length) body.person_titles = args.titles;
+  if (args.seniorities?.length) body.person_seniorities = args.seniorities;
+  if (args.locations?.length) body.person_locations = args.locations;
+
+  const json = await post<{
+    people?: ApolloPerson[];
+    pagination?: { total_entries?: number };
+  }>(apiKey, "/api/v1/mixed_people/search", body);
+  const people = json.people ?? [];
+  return {
+    people,
+    total: json.pagination?.total_entries ?? people.length,
+  };
+}
+
+function apolloValuesOf(args: ApolloSourceArgs, key?: string): string[] {
+  if (!key) return [];
+  const raw = (args as unknown as Record<string, unknown>)[key];
+  if (typeof raw === "string") {
+    const t = raw.trim();
+    return t ? [t] : [];
+  }
+  if (Array.isArray(raw)) {
+    return raw.map((v) => (typeof v === "string" ? v.trim() : "")).filter(Boolean);
+  }
+  return [];
+}
+
+export function buildApolloTierSearches(
+  tier: ApolloLadderTier,
+  args: ApolloSourceArgs,
+): ApolloSearchArgs[] {
+  const titles = tier.titlesFrom ? apolloValuesOf(args, tier.titlesFrom) : [];
+  if (tier.titlesFrom && titles.length === 0) return [];
+  const companies = tier.useCompanies ? apolloValuesOf(args, "companies") : [];
+  const domain = tier.useDomain ? args.domain?.trim() : undefined;
+  const locations =
+    tier.useLocation && args.location?.trim() ? [args.location.trim()] : [];
+  const seniorities = tier.useSeniorities ? apolloValuesOf(args, "seniorities") : [];
+
+  const bases: ApolloSearchArgs[] = [];
+  const companyTargets = companies.length ? companies : [undefined];
+  for (const company of companyTargets) {
+    const base: ApolloSearchArgs = {
+      domain: domain || undefined,
+      company,
+      titles: titles.length ? titles : undefined,
+      seniorities: seniorities.length ? seniorities : undefined,
+      locations: locations.length ? locations : undefined,
+      limit: tier.limit,
+    };
+    if (!base.domain && !base.company && !base.titles) continue;
+    const pages = clampInt(tier.pages ?? 1, 1, MAX_TIER_PAGES);
+    for (let page = 1; page <= pages; page++) bases.push({ ...base, page });
+  }
+  return bases;
+}
+
+function apolloSearchKey(s: ApolloSearchArgs): string {
+  return JSON.stringify([
+    s.domain ?? "",
+    s.company ?? "",
+    s.titles ?? [],
+    s.seniorities ?? [],
+    s.locations ?? [],
+    s.page ?? 1,
+  ]).toLowerCase();
+}
+
+async function mapPool<T, R>(
+  items: T[],
+  concurrency: number,
+  fn: (item: T, index: number) => Promise<R>,
+): Promise<R[]> {
+  const results = new Array<R>(items.length);
+  let next = 0;
+  const workers = Array.from(
+    { length: Math.max(1, Math.min(concurrency, items.length)) },
+    async () => {
+      for (;;) {
+        const i = next++;
+        if (i >= items.length) return;
+        results[i] = await fn(items[i], i);
+      }
+    },
+  );
+  await Promise.all(workers);
+  return results;
+}
+
+function personKey(p: ApolloPerson): string {
+  const linkedin = p.linkedin_url?.trim();
+  if (linkedin) return linkedin.toLowerCase();
+  const name = nameOf(p).trim().toLowerCase();
+  const company = p.organization?.name?.trim().toLowerCase() ?? "";
+  const title = p.title?.trim().toLowerCase() ?? "";
+  return [name, company, title].filter(Boolean).join("|");
+}
+
+function peopleRow(p: ApolloPerson): string {
+  return `| ${cell(nameOf(p))} | ${cell(p.title)} | ${cell(
+    p.organization?.name,
+  )} | ${cell(locationOf(p))} | ${cell(p.email)} | ${cell(
+    p.email_status,
+  )} | ${cell(p.linkedin_url)} |`;
+}
+
+const PEOPLE_TABLE_HEADER = [
+  "| Name | Title | Company | Location | Email | Email status | LinkedIn |",
+  "| --- | --- | --- | --- | --- | --- | --- |",
+];
 
 function renderOrganizations(orgs: ApolloCompany[]): {
   text: string;
@@ -212,25 +394,106 @@ export const apolloAdapter: ApolloAdapter = {
         truncated: false,
       };
     }
-    const perPage = Math.min(args.limit ?? DEFAULT_LIMIT, HARD_LIMIT);
-    const body: Record<string, unknown> = { page: 1, per_page: perPage };
-    if (args.domain) body.q_organization_domains = args.domain;
-    if (args.company) body.q_organization_name = args.company;
-    if (args.titles?.length) body.person_titles = args.titles;
-    if (args.seniorities?.length) body.person_seniorities = args.seniorities;
-    if (args.locations?.length) body.person_locations = args.locations;
-
-    const json = await post<{
-      people?: ApolloPerson[];
-      pagination?: { total_entries?: number };
-    }>(apiKey, "/api/v1/mixed_people/search", body);
-    const people = json.people ?? [];
-    const total = json.pagination?.total_entries ?? people.length;
+    const { people, total } = await rawPeopleSearch(apiKey, args);
     const rendered = renderPeople(people);
     return {
       text: rendered.text,
       count: people.length,
       truncated: rendered.truncated || total > people.length,
+    };
+  },
+
+  async sourcePeople(apiKey, args, spec, record) {
+    console.log(`[apollo] ladder intent: ${JSON.stringify(args)}`);
+    const target = clampInt(args.targetCount ?? spec.defaults.targetCount, 1, 100);
+    const maxSearches = clampInt(
+      args.maxSearches ?? spec.defaults.maxSearches,
+      1,
+      HARD_MAX_SEARCHES,
+    );
+    const concurrency = clampInt(spec.defaults.concurrency ?? 4, 1, 8);
+    const defaultLimit = spec.defaults.limit;
+    const seen = new Map<
+      string,
+      { tier: string; weight: number; rank: number; person: ApolloPerson }
+    >();
+    const ranQueries = new Set<string>();
+    let searchesRun = 0;
+    const tierLog: string[] = [];
+    let firstError: string | null = null;
+
+    for (const tier of spec.tiers) {
+      if (seen.size >= target || searchesRun >= maxSearches) break;
+      const searches = buildApolloTierSearches(tier, args)
+        .map((s) => ({ ...s, limit: s.limit ?? defaultLimit ?? HARD_LIMIT }))
+        .filter((s) => {
+          const k = apolloSearchKey(s);
+          if (ranQueries.has(k)) return false;
+          ranQueries.add(k);
+          return true;
+        });
+      if (searches.length === 0) continue;
+
+      const batch = searches.slice(0, maxSearches - searchesRun);
+      const batchResults = await mapPool(batch, concurrency, async (s) => {
+        try {
+          return (await rawPeopleSearch(apiKey, s)).people;
+        } catch (error) {
+          if (firstError === null) {
+            firstError = error instanceof Error ? error.message : "search failed";
+          }
+          return [] as ApolloPerson[];
+        }
+      });
+      searchesRun += batch.length;
+
+      let addedInTier = 0;
+      for (const people of batchResults) {
+        people.forEach((person, i) => {
+          const key = personKey(person);
+          if (!key || seen.has(key)) return;
+          seen.set(key, { tier: tier.name, weight: tier.weight, rank: i, person });
+          addedInTier++;
+        });
+      }
+      tierLog.push(`${tier.name} ${batch.length}q->+${addedInTier}`);
+    }
+
+    if (seen.size === 0 && firstError) {
+      return {
+        text: `_Apollo ladder couldn't run (${firstError})._`,
+        count: 0,
+        truncated: false,
+        searches: searchesRun,
+      };
+    }
+
+    const ranked = [...seen.values()]
+      .sort((a, b) => b.weight - a.weight || a.rank - b.rank)
+      .slice(0, target);
+
+    if (record && searchesRun > 0) {
+      await record(searchesRun, { tiers: tierLog, unique: seen.size });
+    }
+
+    const lines = [...PEOPLE_TABLE_HEADER];
+    let truncated = false;
+    for (const { person } of ranked) {
+      lines.push(peopleRow(person));
+      if (lines.join("\n").length > LADDER_CHAR_CAP) {
+        truncated = true;
+        break;
+      }
+    }
+    const header =
+      `_Apollo ladder — ${tierLog.join(" · ") || "no tiers run"}. ` +
+      `${seen.size} unique across ${searchesRun} searches. ` +
+      `Search may mask emails — use apollo_enrich_person only on the people you pick._`;
+    return {
+      text: ranked.length ? `${header}\n\n${lines.join("\n")}` : `${header}\n\n_No contacts found._`,
+      count: ranked.length,
+      truncated: truncated || seen.size > ranked.length,
+      searches: searchesRun,
     };
   },
 

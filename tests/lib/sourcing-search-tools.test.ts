@@ -6,6 +6,7 @@ import { SOURCING_AGENT_TOOLS, ALL_TOOL_NAMES } from "@/lib/agents/tools";
 describe("sourcing connector tools", () => {
   const SEARCH_TOOLS = [
     "apollo_search_people",
+    "apollo_source_people",
     "contactout_people_search",
     "rocketreach_search_people",
     "signalhire_search_people",

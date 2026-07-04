@@ -234,6 +234,12 @@ export const env = {
   get rocketreachLadder() {
     return process.env.ROCKETREACH_LADDER ?? "";
   },
+  /** Optional override for the Apollo search-ladder spec. Basic committed
+   *  default; swap in a tuned spec via bucket/env. See
+   *  lib/sourcing/apollo-ladder.ts. */
+  get apolloLadder() {
+    return process.env.APOLLO_LADDER ?? "";
+  },
   /** Optional self-host fallback for the Outreach (email drafting) harness.
    *  See lib/outreach/harness.ts. */
   get outreachHarness() {

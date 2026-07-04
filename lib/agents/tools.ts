@@ -16,6 +16,7 @@ import { affinityAdapter } from "../integrations/affinity";
 import { aircallAdapter } from "../integrations/aircall";
 import { airtableAdapter } from "../integrations/airtable";
 import { apolloAdapter } from "../integrations/apollo";
+import { loadApolloLadder } from "../sourcing/apollo-ladder";
 import { ashbyAdapter } from "../integrations/ashby";
 import { attioAdapter } from "../integrations/attio";
 import { avomaAdapter } from "../integrations/avoma";
@@ -1424,6 +1425,56 @@ function buildAll(ctx: ToolContext): ToolSet {
       execute: async (args) => {
         if (!ctx.apolloToken) return { error: notConnected("Apollo") };
         return apolloAdapter.searchPeople(ctx.apolloToken, args);
+      },
+    }),
+
+    apollo_source_people: tool({
+      description:
+        "Run a deterministic Apollo people-search ladder for ONE sourcing intent and return a deduped, ranked shortlist. Call this ONCE per intent — it runs tighter title/location/company/domain/seniority searches first, widens automatically only as needed, dedupes across tiers, and STOPS once it has enough. Apollo search may mask emails; reveal contacts later with apollo_enrich_person only for selected people. Prefer this over looping apollo_search_people by hand.",
+      inputSchema: z.object({
+        currentTitles: z
+          .array(z.string())
+          .min(1)
+          .describe("Exact current job titles for this role."),
+        adjacentTitles: z
+          .array(z.string())
+          .optional()
+          .describe("Adjacent / synonymous titles, incl. recent past roles."),
+        companies: z
+          .array(z.string())
+          .optional()
+          .describe("Target companies to filter to (optional)."),
+        domain: z
+          .string()
+          .optional()
+          .describe("Target company domain for account-based search, e.g. acme.com."),
+        location: z
+          .string()
+          .optional()
+          .describe("Target person location, e.g. 'London' or 'San Francisco, CA'."),
+        seniorities: z
+          .array(z.string())
+          .optional()
+          .describe(
+            "Apollo seniorities, e.g. owner, founder, c_suite, partner, vp, head, director, manager, senior, entry, intern.",
+          ),
+        targetCount: z
+          .number()
+          .int()
+          .positive()
+          .optional()
+          .describe("Unique candidates to gather before stopping (default 25)."),
+        maxSearches: z
+          .number()
+          .int()
+          .positive()
+          .optional()
+          .describe("Cap on search calls this ladder makes (default 6, max 24)."),
+      }),
+      execute: async (args) => {
+        if (!ctx.apolloToken) return { error: notConnected("Apollo") };
+        const spec = await loadApolloLadder();
+        return apolloAdapter.sourcePeople(ctx.apolloToken, args, spec);
       },
     }),
 
@@ -4336,6 +4387,7 @@ export const ALL_TOOL_NAMES = [
   "adzuna_search_jobs",
   "adzuna_salary_histogram",
   "apollo_search_people",
+  "apollo_source_people",
   "apollo_enrich_person",
   "apollo_search_organizations",
   "bouncer_verify_email",
