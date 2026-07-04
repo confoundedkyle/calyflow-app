@@ -91,6 +91,7 @@ export default async function SourcingPage({
       goalQualified={sessionTargets.goalQualified}
       budgetUsd={sessionTargets.budgetUsd}
       spentUsd={spent}
+      projectSpentUsd={signals.totals.costUsd}
       qualifiedCount={qualified}
       projectBudgetUsd={project.sourcing_budget_usd}
       connectorBudgets={connectorBudgets}

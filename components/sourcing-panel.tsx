@@ -15,6 +15,8 @@ import type { ChannelSignals } from "@/lib/sourcing/signals";
 import {
   DEFAULT_SESSION_GOAL,
   DEFAULT_SESSION_BUDGET_USD,
+  budgetReached,
+  effectiveProjectBudgetUsd,
 } from "@/lib/shortlist/budget";
 import { Button, inputClass } from "./ui";
 import { GenerateDocDialog } from "./generate-doc-dialog";
@@ -94,6 +96,7 @@ export function SourcingPanel({
   budgetUsd,
   projectBudgetUsd,
   spentUsd,
+  projectSpentUsd,
   qualifiedCount,
   connectorBudgets,
   connectors,
@@ -115,6 +118,7 @@ export function SourcingPanel({
   budgetUsd: number | null;
   projectBudgetUsd: number | null;
   spentUsd: number;
+  projectSpentUsd: number;
   qualifiedCount: number;
   connectorBudgets: ConnectorBudgetRowData[];
   connectors: string[];
@@ -192,6 +196,8 @@ export function SourcingPanel({
     (budget.trim() ? Number(budget) : budgetUsd) ?? DEFAULT_SESSION_BUDGET_USD;
   const goalPct = goalNum ? Math.min(100, (qualifiedCount / goalNum) * 100) : 0;
   const budgetPct = budgetNum ? Math.min(100, (spentUsd / budgetNum) * 100) : 0;
+  const projectCap = effectiveProjectBudgetUsd(projectBudgetUsd);
+  const projectBudgetReached = budgetReached(projectSpentUsd, projectCap);
 
   // ---- Strategist chat ----
   const [turns, setTurns] = useState<ChatTurn[]>(
@@ -408,12 +414,15 @@ export function SourcingPanel({
     approvedProposal != null &&
     pendingProposal != null &&
     norm(pendingProposal) === norm(approvedProposal);
+  const approveBlockedReason = !prereqsReady
+    ? "Generate the Sourcing Plan and Qualification criteria before running a search."
+    : projectBudgetReached
+      ? `This project has reached its sourcing budget ($${projectCap.toFixed(2)}). Raise it in Project Settings to source more.`
+      : null;
   async function approveAndRun() {
     if (!pendingProposal || running || approving || locked) return;
-    if (!prereqsReady) {
-      setError(
-        "Generate the Sourcing Plan and Qualification criteria before running a search.",
-      );
+    if (approveBlockedReason) {
+      setError(null);
       return;
     }
     setError(null);
@@ -1021,24 +1030,34 @@ export function SourcingPanel({
                 pendingProposal &&
                 !running &&
                 (!alreadyRan ? (
-                  <div className="-mx-4 -mb-4 mt-3 flex flex-wrap items-center gap-3 rounded-b-card border-t border-mint-400/30 bg-mint-400/6 px-4 py-3">
-                    <span className="text-sm text-navy-800/70">
-                      Happy with this plan? Approving runs it now (spends against
-                      your budget).
-                    </span>
-                    <div className="ml-auto flex items-center gap-2">
-                      {!prereqsReady && (
-                        <span className="text-xs text-amber-500">
-                          Generate both docs above first
-                        </span>
-                      )}
-                      <Button
-                        onClick={approveAndRun}
-                        disabled={approving || locked || !prereqsReady}
-                      >
-                        {approving ? "Starting…" : "✓ Approve & run"}
-                      </Button>
+                  <div className="-mx-4 -mb-4 mt-3 rounded-b-card border-t border-mint-400/30 bg-mint-400/6 px-4 py-3">
+                    <div className="flex flex-wrap items-center gap-3">
+                      <span className="text-sm text-navy-800/70">
+                        Happy with this plan? Approving runs it now (spends against
+                        your budget).
+                      </span>
+                      <div className="ml-auto">
+                        <Button
+                          onClick={approveAndRun}
+                          disabled={approving || locked || !!approveBlockedReason}
+                        >
+                          {approving ? "Starting…" : "✓ Approve & run"}
+                        </Button>
+                      </div>
                     </div>
+                    {approveBlockedReason && (
+                      <p className="mt-3 rounded-card border border-coral-400/25 bg-coral-400/10 px-3 py-2 text-sm text-coral-400">
+                        {approveBlockedReason}{" "}
+                        {projectBudgetReached && (
+                          <Link
+                            href={settingsHref}
+                            className="font-semibold underline underline-offset-2"
+                          >
+                            Open Project Settings
+                          </Link>
+                        )}
+                      </p>
+                    )}
                   </div>
                 ) : (
                   <div className="-mx-4 -mb-4 mt-3 flex flex-wrap items-center gap-3 rounded-b-card border-t border-navy-800/12 bg-cream-100/50 px-4 py-3 text-sm text-navy-800/70">
