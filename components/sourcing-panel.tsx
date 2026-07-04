@@ -475,7 +475,9 @@ export function SourcingPanel({
     convIdRef.current = null;
     setConversationId(null);
     setInput("");
-    router.replace(`${basePath}/sourcing`);
+    setRun(null);
+    setApprovedProposal(null);
+    router.replace(`${basePath}/sourcing?new=1`);
   }
 
   const [, startArchive] = useTransition();

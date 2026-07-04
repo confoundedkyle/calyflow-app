@@ -10,6 +10,7 @@
     "lint": "eslint",
     "typecheck": "tsc --noEmit",
     "test": "vitest run",
+    "verify": "npm run typecheck && npm run lint && npm run test",
     "test:watch": "vitest",
     "db:start": "supabase start",
     "db:stop": "supabase stop",

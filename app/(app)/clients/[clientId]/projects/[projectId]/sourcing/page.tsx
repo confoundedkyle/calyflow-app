@@ -22,19 +22,19 @@ export default async function SourcingPage({
   searchParams,
 }: {
   params: Promise<{ clientId: string; projectId: string }>;
-  searchParams: Promise<{ c?: string }>;
+  searchParams: Promise<{ c?: string; new?: string }>;
 }) {
   const session = await getSession();
   if (!session) redirect("/sign-in");
   const { clientId, projectId } = await params;
-  const { c: conversationParam } = await searchParams;
+  const { c: conversationParam, new: newSessionParam } = await searchParams;
+  const startFresh = newSessionParam === "1";
   const project = await getProject(session.workspaceId, projectId);
   if (!project || project.client.id !== clientId) notFound();
 
   const [
     plan,
     criteria,
-    latestRunRes,
     connections,
     connectorSpend,
     signals,
@@ -43,21 +43,16 @@ export default async function SourcingPage({
   ] = await Promise.all([
     getActiveSourcingPlan(session.workspaceId, projectId),
     getActiveQualification(session.workspaceId, projectId),
-    db()
-      .from("shortlist_runs")
-      .select("*")
-      .eq("project_id", projectId)
-      .order("created_at", { ascending: false })
-      .limit(1)
-      .maybeSingle(),
     listConnections(session.workspaceId),
     connectorSpendByProvider(projectId),
     getChannelSignals(projectId),
-    getActiveSourcingStrategyConversation(
-      session.workspaceId,
-      projectId,
-      conversationParam,
-    ),
+    startFresh
+      ? Promise.resolve(null)
+      : getActiveSourcingStrategyConversation(
+          session.workspaceId,
+          projectId,
+          conversationParam,
+        ),
     listSourcingStrategySessions(projectId),
   ]);
 
@@ -66,6 +61,16 @@ export default async function SourcingPage({
   const activeConv = conversation?.conversationId ?? null;
   const sessionTargets = await getSessionTargets(projectId, activeConv);
   const { qualified, spent } = sessionProgress(signals, activeConv);
+  const latestRunRes = activeConv
+    ? await db()
+        .from("shortlist_runs")
+        .select("*")
+        .eq("project_id", projectId)
+        .eq("conversation_id", activeConv)
+        .order("created_at", { ascending: false })
+        .limit(1)
+        .maybeSingle()
+    : { data: null };
 
   const basePath = `/clients/${clientId}/projects/${projectId}`;
   const connectedProviders = connectedProvidersFrom(connections);
