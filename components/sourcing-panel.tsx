@@ -266,7 +266,11 @@ export function SourcingPanel({
     let active = true;
     const tick = async () => {
       try {
-        const res = await fetch(`/api/shortlist/run?projectId=${projectId}`);
+        const params = new URLSearchParams({
+          projectId,
+          runId: run.id,
+        });
+        const res = await fetch(`/api/shortlist/run?${params.toString()}`);
         if (!res.ok || !active) return;
         const { run: latest } = await res.json();
         if (!latest || !active) return;
@@ -284,7 +288,7 @@ export function SourcingPanel({
       active = false;
       clearInterval(interval);
     };
-  }, [running, projectId, router]);
+  }, [running, projectId, router, run?.id]);
 
   // Send a message to the strategist and stream the proposal back.
   async function sendStrategy(task: string) {
@@ -440,13 +444,11 @@ export function SourcingPanel({
       });
       const body = await res.json().catch(() => null);
       // A run is already active for this project (one at a time) — likely started
-      // from another session/tab. Don't hard-error: surface the in-progress run.
+      // from another session/tab. Keep this session's plan visible instead of
+      // swapping in another run's trace.
       if (res.status === 409) {
-        const latest = await fetch(`/api/shortlist/run?projectId=${projectId}`)
-          .then((r) => r.json())
-          .catch(() => null);
-        if (latest?.run) setRun(latest.run as RunState);
-        showToast("A search is already running — showing its progress.");
+        setError(body?.error ?? "A sourcing run is already in progress for this project.");
+        showToast("A search is already running in another session.");
         return;
       }
       if (!res.ok) throw new Error(body?.error ?? `Could not start (${res.status})`);

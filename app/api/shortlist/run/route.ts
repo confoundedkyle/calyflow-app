@@ -19,6 +19,9 @@ import {
 
 export const maxDuration = 600; // sourcing loops run long; work happens in after()
 
+const UUID_RE =
+  /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+
 /** Sum of cost_usd across this project's prior shortlist runs (budget tracking). */
 async function priorSpendUsd(projectId: string): Promise<number> {
   const { data } = await db()
@@ -46,8 +49,6 @@ export async function POST(request: NextRequest) {
       : null;
   // The session (strategist conversation) this run belongs to — drives the
   // session's own goal + budget.
-  const UUID_RE =
-    /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
   const conversationId =
     typeof body?.conversationId === "string" && UUID_RE.test(body.conversationId)
       ? body.conversationId
@@ -186,23 +187,34 @@ export async function POST(request: NextRequest) {
   return NextResponse.json({ runId });
 }
 
-/** Latest run for a project, for the UI to poll while sourcing. */
+/** Run status for the UI to poll while sourcing. Prefer a specific run id so a
+ *  newly-approved session never renders another session's trace. */
 export async function GET(request: NextRequest) {
   const session = await getSession();
   if (!session) {
     return NextResponse.json({ error: "Not authenticated" }, { status: 401 });
   }
   const projectId = request.nextUrl.searchParams.get("projectId") ?? "";
+  const runId = request.nextUrl.searchParams.get("runId") ?? "";
+  const conversationId = request.nextUrl.searchParams.get("conversationId") ?? "";
   const project = await getProject(session.workspaceId, projectId);
   if (!project) {
     return NextResponse.json({ error: "Not found" }, { status: 404 });
   }
-  const { data } = await db()
+  let query = db()
     .from("shortlist_runs")
     .select(
-      "id, status, steps, output_text, error_message, candidates_added, qualified_after, outcome, learnings, created_at",
+      "id, status, steps, output_text, error_message, candidates_added, qualified_after, outcome, learnings, created_at, conversation_id, strategy",
     )
-    .eq("project_id", projectId)
+    .eq("project_id", projectId);
+
+  if (UUID_RE.test(runId)) {
+    query = query.eq("id", runId);
+  } else if (UUID_RE.test(conversationId)) {
+    query = query.eq("conversation_id", conversationId);
+  }
+
+  const { data } = await query
     .order("created_at", { ascending: false })
     .limit(1)
     .maybeSingle();
