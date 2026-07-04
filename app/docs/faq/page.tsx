@@ -21,7 +21,7 @@ work with your live data.
 ## What's the difference between a connector and a module?
 
 A **connector** links Calyflow to an outside tool (your ATS, CRM, a sourcing tool).
-A **module** (ATS, CRM, Talent Pool) is a place *inside* Calyflow where that synced
+A **module** (ATS, CRM, LinkedIn Connections) is a place *inside* Calyflow where that synced
 data becomes a working list you manage. See [Connectors](/docs/connectors) and
 [Modules](/docs/modules).
 

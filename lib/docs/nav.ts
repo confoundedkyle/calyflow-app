@@ -48,7 +48,7 @@ export const DOC_NAV: DocNavNode[] = [
         children: [
           { title: "ATS", href: "/docs/modules/ats" },
           { title: "CRM", href: "/docs/modules/crm" },
-          { title: "Talent Pool", href: "/docs/modules/talent-pool" },
+          { title: "LinkedIn Connections", href: "/docs/modules/talent-pool" },
         ],
       },
     ],

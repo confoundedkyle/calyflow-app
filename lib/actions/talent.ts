@@ -9,7 +9,7 @@ import { LINKEDIN_URL_ERROR, isValidLinkedinUrl } from "../validation";
 export async function createProspectAction(formData: FormData): Promise<string> {
   const session = await requireSession();
   const name = String(formData.get("name") ?? "").trim();
-  if (!name) throw new Error("Prospect name is required");
+  if (!name) throw new Error("Connection name is required");
   const linkedin = optional(formData.get("linkedin_url"));
   if (!isValidLinkedinUrl(linkedin)) throw new Error(LINKEDIN_URL_ERROR);
   const { data, error } = await db()
@@ -35,9 +35,9 @@ export async function updateProspectAction(formData: FormData) {
   const session = await requireSession();
   const id = String(formData.get("id") ?? "");
   const name = String(formData.get("name") ?? "").trim();
-  if (!name) throw new Error("Prospect name is required");
+  if (!name) throw new Error("Connection name is required");
   const prospect = await getProspect(session.workspaceId, id);
-  if (!prospect) throw new Error("Prospect not found");
+  if (!prospect) throw new Error("Connection not found");
   const linkedin = optional(formData.get("linkedin_url"));
   if (!isValidLinkedinUrl(linkedin)) throw new Error(LINKEDIN_URL_ERROR);
   const { error } = await db()
@@ -61,7 +61,7 @@ export async function updateProspectAction(formData: FormData) {
 export async function deleteProspectAction(prospectId: string) {
   const session = await requireSession();
   const prospect = await getProspect(session.workspaceId, prospectId);
-  if (!prospect) throw new Error("Prospect not found");
+  if (!prospect) throw new Error("Connection not found");
 
   // Remove any prospect-scoped documents (CVs) and their stored uploads.
   const { data: docs } = await db()

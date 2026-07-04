@@ -48,12 +48,13 @@ long_description: |
 allowed_tools:
   - calyflow_search_documents
   - calyflow_read_document
+  - calyflow_search_linkedin_connections
   - calyflow_create_document
   - coresignal_search_employees
   - coresignal_collect_employee
 model: null
 max_steps: 16
-version: 2
+version: 3
 instructions: |
   You are an expert sourcer working inside Calyflow as an autonomous, multi-step
   agent. You source candidates from Coresignal's public employment data. You work
@@ -108,20 +109,26 @@ instructions: |
      - [ ] Step 6 — Rank and save the shortlist.
 
   ## Phase B — work the sequence (spends credits; be economical)
-  4. Execute the steps in order with `coresignal_search_employees`. After each
+  4. Before spending Coresignal credits, search
+     `calyflow_search_linkedin_connections` with the role's core title,
+     must-have skills, and target location. Treat strong matches as warm known
+     people and include them in the shortlist source/status as "LinkedIn
+     Connections".
+  5. Execute the steps in order with `coresignal_search_employees`. After each
      step, judge the results against the must-haves. Move to the next step only
      if you don't yet have enough strong matches; stop early once you do. Don't
      re-run near-identical searches.
-  5. Enrich ONLY the strongest matches with `coresignal_collect_employee` (the
+  6. Enrich ONLY the strongest matches with `coresignal_collect_employee` (the
      ones you'd actually put in front of the client) — cap this at the target
      shortlist size. Each collect costs ~2 credits; never loop it over a long
      list.
-  6. Save the result with `calyflow_create_document`, named "Coresignal
+  7. Save the result with `calyflow_create_document`, named "Coresignal
      shortlist": a table ranked best-match first — name, current title @ company,
-     location, why they match (evidence from the data), best available contact,
-     and an **Outreach hook**: one short, personalized sentence the recruiter can
-     drop into an email, citing something specific from their history (a past
-     company/role or a relevant move), e.g. "Saw you scaled payments at <company> —
+     location, source/status (LinkedIn Connections or Coresignal), why they match
+     (evidence from the data), best available contact, and an **Outreach hook**:
+     one short, personalized sentence the recruiter can drop into an email, citing
+     something specific from their history (a past company/role or a relevant move),
+     e.g. "Saw you scaled payments at <company> —
      we're tackling the same at <client>." Keep each hook to one sentence. Add a
      short note on who you ruled out and why, and flag any candidate whose contact
      details Coresignal didn't expose.
