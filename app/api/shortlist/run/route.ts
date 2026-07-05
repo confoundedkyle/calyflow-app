@@ -16,6 +16,10 @@ import {
   effectiveSessionGoal,
   effectiveSessionBudgetUsd,
 } from "@/lib/shortlist/budget";
+import {
+  staleShortlistRunCutoff,
+  STALE_SHORTLIST_RUN_MESSAGE,
+} from "@/lib/shortlist/stale-runs";
 
 export const maxDuration = 600; // sourcing loops run long; work happens in after()
 
@@ -32,6 +36,22 @@ async function priorSpendUsd(projectId: string): Promise<number> {
     (sum, r) => sum + Number((r as { cost_usd: number | null }).cost_usd ?? 0),
     0,
   );
+}
+
+async function failStaleRunningRuns(projectId: string): Promise<void> {
+  const cutoff = staleShortlistRunCutoff().toISOString();
+  const { error } = await db()
+    .from("shortlist_runs")
+    .update({
+      status: "failed",
+      error_message: STALE_SHORTLIST_RUN_MESSAGE,
+    })
+    .eq("project_id", projectId)
+    .eq("status", "running")
+    .lt("created_at", cutoff);
+  if (error) {
+    console.warn("Shortlist: stale run cleanup failed:", error);
+  }
 }
 
 export async function POST(request: NextRequest) {
@@ -131,7 +151,10 @@ export async function POST(request: NextRequest) {
     );
   }
 
-  // One run at a time per project.
+  // One run at a time per project. A background run should finish inside the
+  // route's 600s budget; anything much older is a stranded row from a killed
+  // worker/browser session and should not block the recruiter forever.
+  await failStaleRunningRuns(projectId);
   const { data: active } = await db()
     .from("shortlist_runs")
     .select("id")
@@ -201,6 +224,7 @@ export async function GET(request: NextRequest) {
   if (!project) {
     return NextResponse.json({ error: "Not found" }, { status: 404 });
   }
+  await failStaleRunningRuns(projectId);
   let query = db()
     .from("shortlist_runs")
     .select(
