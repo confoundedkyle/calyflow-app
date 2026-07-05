@@ -228,7 +228,7 @@ export async function GET(request: NextRequest) {
   let query = db()
     .from("shortlist_runs")
     .select(
-      "id, status, steps, output_text, error_message, candidates_added, qualified_after, outcome, learnings, created_at, conversation_id, strategy",
+      "id, status, steps, output_text, error_message, candidates_added, qualified_after, outcome, learnings, cost_usd, input_tokens, output_tokens, cache_read_tokens, created_at, conversation_id, strategy",
     )
     .eq("project_id", projectId);
 

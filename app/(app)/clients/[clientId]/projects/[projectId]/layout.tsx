@@ -5,6 +5,7 @@ import { getProject } from "@/lib/queries";
 import { setProjectStatusAction } from "@/lib/actions/clients";
 import { effectiveProjectBudgetUsd } from "@/lib/shortlist/budget";
 import { shortlistSpentUsd } from "@/lib/shortlist/spend";
+import { formatUsd } from "@/lib/money";
 import { Button } from "@/components/ui";
 import { ProjectTabNav } from "@/components/project-tab-nav";
 
@@ -39,8 +40,7 @@ export default async function ProjectLayout({
           <div className="flex flex-wrap items-baseline gap-x-3 gap-y-0.5">
             <h1 className="text-xl font-bold leading-tight">{project.name}</h1>
             <span className="text-sm text-navy-800/45">
-              AI credits: ${projectSpentUsd.toFixed(2)} / $
-              {projectBudgetUsd.toFixed(2)} project budget
+              AI credits: {formatUsd(projectSpentUsd)} / {formatUsd(projectBudgetUsd)} project budget
             </span>
           </div>
         </div>

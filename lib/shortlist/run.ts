@@ -493,6 +493,21 @@ export async function runShortlistSourcing(
         agg.cachedInputTokens += u.cachedInputTokens ?? 0;
         spentThisRun += estimateCost(u);
       };
+      const persistPartialUsage = async (): Promise<void> => {
+        const partialCost =
+          spentThisRun > 0 ? Math.round(spentThisRun * 1_000_000) / 1_000_000 : null;
+        await db()
+          .from("shortlist_runs")
+          .update({
+            input_tokens: agg.inputTokens || null,
+            output_tokens: agg.outputTokens || null,
+            cache_read_tokens: agg.cachedInputTokens || null,
+            cost_usd: partialCost,
+          })
+          .eq("id", runId)
+          .eq("status", "running")
+          .then(undefined, () => {});
+      };
 
       // Hard budget cap WITHIN a round, against a phase ceiling: stop the agent
       // the moment cumulative spend reaches the ceiling, so a long round can't
@@ -615,6 +630,7 @@ export async function runShortlistSourcing(
               result.totalUsage as { cachedInputTokens?: number }
             ).cachedInputTokens,
           });
+          await persistPartialUsage();
 
           if (await isGoalMet()) break;
           const addedThisRound =
@@ -693,6 +709,7 @@ export async function runShortlistSourcing(
             cachedInputTokens: (diag.totalUsage as { cachedInputTokens?: number })
               .cachedInputTokens,
           });
+          await persistPartialUsage();
         } catch (err) {
           console.warn("Shortlist: diagnosis step failed:", err);
         }

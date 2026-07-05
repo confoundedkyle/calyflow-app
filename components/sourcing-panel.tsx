@@ -18,6 +18,7 @@ import {
   budgetReached,
   effectiveProjectBudgetUsd,
 } from "@/lib/shortlist/budget";
+import { formatUsd } from "@/lib/money";
 import { Button, inputClass } from "./ui";
 import { GenerateDocDialog } from "./generate-doc-dialog";
 import { useToast } from "./use-toast";
@@ -40,6 +41,10 @@ interface RunState {
   qualified_after: number | null;
   outcome: string | null;
   learnings: string | null;
+  cost_usd: number | null;
+  input_tokens: number | null;
+  output_tokens: number | null;
+  cache_read_tokens: number | null;
 }
 
 const TOOL_LABELS: Record<string, string> = {
@@ -194,10 +199,7 @@ export function SourcingPanel({
     (goal.trim() ? Number(goal) : goalQualified) ?? DEFAULT_SESSION_GOAL;
   const budgetNum =
     (budget.trim() ? Number(budget) : budgetUsd) ?? DEFAULT_SESSION_BUDGET_USD;
-  const goalPct = goalNum ? Math.min(100, (qualifiedCount / goalNum) * 100) : 0;
-  const budgetPct = budgetNum ? Math.min(100, (spentUsd / budgetNum) * 100) : 0;
   const projectCap = effectiveProjectBudgetUsd(projectBudgetUsd);
-  const projectBudgetReached = budgetReached(projectSpentUsd, projectCap);
 
   // ---- Strategist chat ----
   const [turns, setTurns] = useState<ChatTurn[]>(
@@ -255,11 +257,24 @@ export function SourcingPanel({
           qualified_after: initialRun.qualified_after,
           outcome: initialRun.outcome,
           learnings: initialRun.learnings,
+          cost_usd: initialRun.cost_usd,
+          input_tokens: initialRun.input_tokens,
+          output_tokens: initialRun.output_tokens,
+          cache_read_tokens: initialRun.cache_read_tokens,
         }
       : null,
   );
   const running = run?.status === "running";
   const completedRef = useRef<string | null>(null);
+  const liveRunCostUsd = running ? Number(run?.cost_usd ?? 0) : 0;
+  const lastRefreshCostRef = useRef(liveRunCostUsd);
+  const displayedSpentUsd = spentUsd + liveRunCostUsd;
+  const displayedProjectSpentUsd = projectSpentUsd + liveRunCostUsd;
+  const goalPct = goalNum ? Math.min(100, (qualifiedCount / goalNum) * 100) : 0;
+  const budgetPct = budgetNum
+    ? Math.min(100, (displayedSpentUsd / budgetNum) * 100)
+    : 0;
+  const projectBudgetReached = budgetReached(displayedProjectSpentUsd, projectCap);
 
   useEffect(() => {
     if (!running) return;
@@ -275,6 +290,14 @@ export function SourcingPanel({
         const { run: latest } = await res.json();
         if (!latest || !active) return;
         setRun(latest as RunState);
+        const latestCost = Number(latest.cost_usd ?? 0);
+        if (
+          latest.status === "running" &&
+          Math.abs(latestCost - lastRefreshCostRef.current) >= 0.005
+        ) {
+          lastRefreshCostRef.current = latestCost;
+          router.refresh();
+        }
         if (latest.status !== "running" && completedRef.current !== latest.id) {
           completedRef.current = latest.id;
           router.refresh();
@@ -453,6 +476,7 @@ export function SourcingPanel({
       }
       if (!res.ok) throw new Error(body?.error ?? `Could not start (${res.status})`);
       setApprovedProposal(pendingProposal);
+      lastRefreshCostRef.current = 0;
       setRun({
         id: body.runId,
         status: "running",
@@ -463,6 +487,10 @@ export function SourcingPanel({
         qualified_after: null,
         outcome: null,
         learnings: null,
+        cost_usd: null,
+        input_tokens: null,
+        output_tokens: null,
+        cache_read_tokens: null,
       });
       showToast("Sourcing started — candidates will appear in Shortlist");
     } catch (err) {
@@ -668,9 +696,9 @@ export function SourcingPanel({
                   </span>
                   <span className="text-navy-800/70">
                     <span className="font-semibold text-navy-900">
-                      ${spentUsd.toFixed(2)}
+                      {formatUsd(displayedSpentUsd)}
                     </span>
-                    {budgetNum ? ` / $${budgetNum.toFixed(2)}` : ""} spent
+                    {budgetNum ? ` / ${formatUsd(budgetNum)}` : ""} spent
                   </span>
                   <span className="hidden min-w-0 truncate text-xs text-navy-800/45 sm:inline">
                     {connectors.length > 0 ? connectors.join(", ") : "web & GitHub"}
@@ -760,8 +788,8 @@ export function SourcingPanel({
                 />
               </div>
               <p className="mt-1 text-xs text-navy-800/50">
-                ${spentUsd.toFixed(2)} spent
-                {budgetNum ? ` of $${budgetNum.toFixed(2)}` : ""} · AI model usage
+                {formatUsd(displayedSpentUsd)} spent
+                {budgetNum ? ` of ${formatUsd(budgetNum)}` : ""} · AI model usage
               </p>
             </div>
           </div>
