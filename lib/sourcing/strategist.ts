@@ -44,6 +44,10 @@ to check who has already been saved.
 - **Feedback:** favour profiles like the accepted ones; avoid the rejected patterns.
 - **Recruiter steer:** if the recruiter's message names a channel/connector or a
   constraint (e.g. "now try SignalHire"), make that the spine of the search.
+  If they name a contact-enrichment connector that is NOT a people-search source
+  (for example Hunter.io), do not invent a sourcing search with it: briefly explain
+  the limitation and propose discovery through real search channels, with that
+  connector reserved for later email finding/verification after candidates exist.
 
 ## Output — a short, approvable proposal in markdown
 1. **Goal for this search** — one line (e.g. "add ~4 qualified backend engineers").

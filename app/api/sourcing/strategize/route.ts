@@ -32,6 +32,7 @@ import {
 import { contextBlock, personalBlock } from "@/lib/agents/prompt";
 import { loadStrategistHarness } from "@/lib/sourcing/strategist";
 import { sourcingChannelsBlock } from "@/lib/sourcing/channels";
+import { buildRecruiterSteerBlock } from "@/lib/sourcing/steer";
 import {
   getChannelSignals,
   formatChannelSignalsBlock,
@@ -175,14 +176,18 @@ export async function POST(request: NextRequest) {
   // Qualification criteria) + this project's channel-performance signals +
   // recruiter feedback + live status + personal + effort.
   let systemPrompt = await loadStrategistHarness();
+  let connectedProviders: string[] = [];
 
   try {
     const connections = await listConnections(session.workspaceId);
-    const providers = [...connectedProvidersFrom(connections)];
-    systemPrompt = `${systemPrompt}\n\n${sourcingChannelsBlock(providers)}`;
+    connectedProviders = [...connectedProvidersFrom(connections)];
+    systemPrompt = `${systemPrompt}\n\n${sourcingChannelsBlock(connectedProviders)}`;
   } catch (err) {
     console.warn("Strategize: channels block failed:", err);
   }
+
+  const steerBlock = buildRecruiterSteerBlock(task, connectedProviders);
+  if (steerBlock) systemPrompt = `${systemPrompt}\n\n${steerBlock}`;
 
   try {
     const assembled = await assembleContext(session.workspaceId, project, [], "");
